@@ -1,3 +1,6 @@
+import json
+import itertools
+
 def getWords() -> dict:
         dictionary = open("ENGLISH_DICTIONARY.txt").read().splitlines()
         wordsIncomplete = list(filter(lambda x: x.isupper(), dictionary))
@@ -25,14 +28,15 @@ def getDefinitions() -> dict:
         for i in range(2, len(dictionary)):
                 definition = ""
                 index = i
-                word = dictionary[index - 2]
-                if word.isupper():
+                word = removeHyphen(dictionary[index - 2])
+                if word.isupper() and (len(word) != 1) and (" " not in word) and ("." not in word):
                         definition = dictionary[index]
                         index += 1
                         while dictionary[index] or (not dictionary[index + 1].isupper() and dictionary[index + 1]):
                                 definition += " " + dictionary[index]
                                 index += 1
                 if definition:
+                        word = word
                         definitions[word.capitalize()] = definition
                 i = index
 
@@ -48,17 +52,34 @@ def getDefinitions() -> dict:
                 definitions[word] = definitionMapped
         return definitions
 
-def isWord(word):
-        word = word.capitalize()
-        words = getDefinitions()
-        if word in words:
-                return True, words[word]
+def isWord(word: str) -> bool:
+        with open("MyDictionary.json", "r") as f:
+                words = json.load(f)
+        if word.capitalize() in words:
+                return True
         else:
-                return False, None
+                return False
+        
+def getDefinition(word: str) -> str:
+        with open("MyDictionary.json", "r") as f:
+                words = json.load(f)
+        if not word.capitalize() in words:
+                return "No such word exists."
+        return words[word.capitalize()]
 
+def removeHyphen(word: str) -> str:
+        parts = word.split("-")
+        wordNew = "".join(parts)
+        return wordNew
+
+def createMyDictionary() -> None:
+        words = getDefinitions()
+        print(dict(itertools.islice(words.items(), 10)))
+        with open("/Users/MOPOLLIKA/Scrabble_NEA/MyDictionary.json", "w") as f:
+                json.dump(words, f)
 
 if __name__ == "__main__":
-        print(isWord("pet"))
+        print(getDefinition("pet"))
 
 
         

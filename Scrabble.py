@@ -1,5 +1,6 @@
 import tkinter as tk
 import pygame
+from numpy import transpose
 import wordCheckAPI as wc
 from wordCheck import isWord
 
@@ -123,7 +124,21 @@ class Board:
                         return False
                 
         def searchForWords(self) -> list:
-                pass
+                wordsFound: list = []
+                for rowElements in self.board:
+                        wordsFound += findWordsInRow(rowElements)[0]
+                for colElements in transpose(self.board):
+                        colElements = list(colElements)
+                        wordsFound += findWordsInRow(colElements)[0]
+                return wordsFound
+
+def findWordsInRow(rowElements) -> tuple[list, bool]:
+        row: str = "".join(rowElements)
+        words: list = [element for element in row.split(" ") if element != ""]
+        isCorrect: bool = True if False not in map(lambda x: isWord(x), words) else False
+        words = [word for word in words if isWord(word)]
+        return words, isCorrect
+                                        
 
 class Player:
         ID = 1
@@ -236,5 +251,15 @@ def launchGame() -> None:
 
 if __name__ == "__main__":
         board = Board()
-        board.placeLetter(1, 1, "A")
+        board.placeLetter(1, 2, "A")
+        board.placeLetter(2, 2, "T")
+        board.placeLetter(3, 2, "T")
+        board.placeLetter(4, 2, "O")
+        board.placeLetter(5, 2, "R")
+        board.placeLetter(6, 2, "N")
+        board.placeLetter(7, 2, "E")
+        board.placeLetter(8, 2, "Y")
+        print(board)
+        print(board.searchForWords())
+        import sys; sys.exit()
         launchGame()
