@@ -1,4 +1,3 @@
-import tkinter as tk
 import pygame
 from numpy import transpose
 import wordCheckAPI as wc
@@ -10,11 +9,12 @@ WHITE: tuple = (255, 255, 255)
 BLACK: tuple = (0, 0, 0)
 GREENPOOL: tuple = (10, 108, 3)
 BROWNDARK: tuple = (92, 64, 51)
+BROWNLIGHT: tuple = (196, 164, 132)
+# 1470:956 - the real resolution, 1280:800 - the chosen resolution
+WIDTH = 1470
+HEIGHT = 829
 
-WIDTH: int = 1280
-HEIGHT: int = 800
-
-screen: pygame.Surface = pygame.display.set_mode((WIDTH, HEIGHT))
+screen: pygame.Surface = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
 
 bigText: pygame.font.Font = pygame.font.Font("helvetica-neue-5/HelveticaNeueLight.otf", 50)
 mediumText: pygame.font.Font = pygame.font.Font("helvetica-neue-5/HelveticaNeueLight.otf", 35)
@@ -34,18 +34,38 @@ class Highlighters:
         UNDERLINE: str = '\033[4m'
         ITALIC: str = '\033[3m'
 
+def highlight(text: str, highlighting: Highlighters) -> str:
+        return highlighting + text + Highlighters.ENDC
+
+def indicateTile(tileType: str) -> str:
+        highlighting: str = ""
+        match tileType:
+                case "DL":
+                        highlighting = Highlighters.BRIGHTBLUE
+                case "TL":
+                        highlighting = Highlighters.BRIGHTMAGENTA
+                case "DW":
+                        highlighting = Highlighters.BRIGHTGREEN
+                case "TW":
+                        highlighting = Highlighters.BRIGHTRED
+                case "ST":
+                        highlighting = Highlighters.BRIGHTYELLOW
+                case _:
+                        highlighting = ""
+        return highlight(tileType, highlighting)
+
 
 class LetterBag:
         def __init__(self) -> None:
-                self.bag = {"A": 9, "B": 2, "C": 2, "D": 4, "E": 12, "F": 2, "G": 3, "H": 2, "I": 9, "J": 1, "K": 1, "L": 4, "M": 2,"N": 6, 
+                self.bag = {"A": 9, "B": 2, "C": 2, "D": 4, "E": 12, "F": 2, "G": 3, "H": 2, "I": 9, "J": 1, "K": 1, "L": 4, "M": 2, "N": 6,
                             "O": 8, "P": 2,"Q": 1, "R": 6, "S": 4, "T": 6, "U": 4, "V": 2, "W": 2, "X": 1, "Y": 2, "Z": 4, "BLANK": 2}
 
         def __repr__(self) -> str:
                 return f"Letters left: {self.bag}"
         
         def refresh(self) -> None:
-                self.bag = {"A": 9, "B": 2, "C": 2, "D": 4, "E": 12, "F": 2, "G": 3, "H": 2, "I": 9, "J": 1, "K": 1, "L": 4, "M": 2,
-                   "N": 6, "O": 8, "P": 2,"Q": 1, "R": 6, "S": 4, "T": 6, "U": 4, "V": 2, "W": 2, "X": 1, "Y": 2, "Z": 4, "BLANK": 2}
+                self.bag = {"A": 9, "B": 2, "C": 2, "D": 4, "E": 12, "F": 2, "G": 3, "H": 2, "I": 9, "J": 1, "K": 1, "L": 4, "M": 2,"N": 6, 
+                            "O": 8, "P": 2,"Q": 1, "R": 6, "S": 4, "T": 6, "U": 4, "V": 2, "W": 2, "X": 1, "Y": 2, "Z": 4, "BLANK": 2}
         
         def isEmpty(self) -> bool:
                 for value in self.bag.values():
@@ -189,34 +209,14 @@ class Simulation:
                         player
 
 
-def highlight(text: str, highlighting: Highlighters) -> str:
-        return highlighting + text + Highlighters.ENDC
-
-def indicateTile(tileType: str) -> str:
-        highlighting: str = ""
-        match tileType:
-                case "DL":
-                        highlighting = Highlighters.BRIGHTBLUE
-                case "TL":
-                        highlighting = Highlighters.BRIGHTMAGENTA
-                case "DW":
-                        highlighting = Highlighters.BRIGHTGREEN
-                case "TW":
-                        highlighting = Highlighters.BRIGHTRED
-                case "ST":
-                        highlighting = Highlighters.BRIGHTYELLOW
-                case _:
-                        highlighting = ""
-        return highlight(tileType, highlighting)
-
 def drawBoard() -> None:
-        sideLength: float = 0.8 * HEIGHT
+        sideLength: float = 0.7 * HEIGHT
         gridLength: float = sideLength / 15
 
         startXPos: float = 0.5 * WIDTH - 0.5 * sideLength
         endXPos: float = 0.5 * WIDTH + 0.5 * sideLength
-        startYPos: float = 0.1 * HEIGHT
-        endYPos: float = 0.9 * HEIGHT
+        startYPos: float = 0.15 * HEIGHT
+        endYPos: float = 0.85 * HEIGHT
 
         pygame.draw.rect(screen, BROWNDARK, [startXPos, startYPos, sideLength, sideLength])
 
@@ -224,27 +224,84 @@ def drawBoard() -> None:
         for i in range(15 + 1):
                 pygame.draw.line(screen, BLACK, (startXPos, startYPos + i * gridLength), (endXPos, startYPos + i * gridLength), 3) # horizontal
                 pygame.draw.line(screen, BLACK, (startXPos + i * gridLength, startYPos), (startXPos + i * gridLength, endYPos), 3) # vertical    
+
+def drawRacks(names: dict[str: int]) -> None:
+        """Variable `names` is in the following format: {'name1': numberOfTiles1, 'name2': numberOfTiles2, ...}"""
+        count: int = len(names)
+        for i in range(2):
+                for j in range(2):
+                        if count == 0:
+                                break
+
+                        xPos, yPos = rackPosition(i, j)
+                        
+                        index: int = 2 * i + j
+                        numberOfTiles: int = list(names.items())[index - 1][1]
+                        drawRack(xPos, yPos, index, numberOfTiles)
+
+                        count -= 1
+
+def rackPosition(i: int, j: int) -> tuple[float, float]:
+        rackLength: float = 0.2 * WIDTH
+        rackHeight: float = rackLength / 7 + 10
+        if i == 0:
+                yPos: float = 0.2 * HEIGHT
+        else:
+                yPos: float = 0.8 * HEIGHT - rackHeight
+
+        if j == 0:
+                xPos: float = (0.5 * WIDTH - 0.35 * HEIGHT) / 2 - 0.1 * WIDTH
+        else:
+                xPos: float = (0.5 * WIDTH + 0.35 * HEIGHT) + (0.5 * WIDTH - 0.35 * HEIGHT) / 2 - 0.1 * WIDTH
+        return xPos, yPos
         
+def drawRack(xPos: float, yPos: float, index: int, numberOfTiles: int) -> None:
+        rackLength: float = 0.2 * WIDTH + 24
+        rackHeight: float = rackLength / 7 + 10
+        tileSide: float = rackLength / 7
+
+        # Rack surface
+        pygame.draw.rect(screen, BROWNLIGHT, [xPos, yPos, rackLength, rackHeight])
+        for i in range(7 + 1):
+                # Vertical rack borders
+                pygame.draw.line(screen, BLACK, (xPos + i * tileSide, yPos), (xPos + i * tileSide, yPos + rackHeight - 1.5), width=3)
+        # Top horizontal border
+        pygame.draw.line(screen, BLACK, (xPos - 1, yPos), (xPos + rackLength + 1.5, yPos), width=5)
+        # Bottom horizontal border
+        pygame.draw.line(screen, BLACK, (xPos - 1, yPos + rackHeight - 2.5), (xPos + rackLength + 1.5, yPos + rackHeight - 2.5), width=5)
+
+
 # Main game
 def launchGame() -> None:
         pygame.display.set_caption("Scrabble Ultra")
 
         clock: pygame.time.Clock = pygame.time.Clock()
         running: bool = True
+        screenWidth = pygame.display.Info().current_w
+        screenHeight = pygame.display.Info().current_h
+
+        title = bigText.render("Scrabble Ultra", True, WHITE)
+        titleRect = title.get_rect()
+        titleRect.center = (WIDTH / 2, 0.1 * HEIGHT)
 
         while running:
 
                 screen.fill(GREENPOOL)
-
                 for event in pygame.event.get():
                         if event.type == pygame.QUIT:
                                 running = False
+
+                        if event.type == pygame.KEYDOWN:
+                                if event.key == pygame.K_ESCAPE:
+                                        running = False
                 
                 drawBoard()
+                drawRacks({"Oliver": 7, "Michael": 3, "Oscar": 4})
+                screen.blit(title, titleRect)
 
                 pygame.display.flip()
                 
-                clock.tick(60)  # limits FPS to 60
+                clock.tick(60)  # sets FPS to 60
 
         pygame.quit()
 
@@ -259,7 +316,6 @@ if __name__ == "__main__":
         board.placeLetter(6, 2, "N")
         board.placeLetter(7, 2, "E")
         board.placeLetter(8, 2, "Y")
-        print(board)
-        print(board.searchForWords())
-        import sys; sys.exit()
+        board.printTypes()
+        #import sys; sys.exit()
         launchGame()
