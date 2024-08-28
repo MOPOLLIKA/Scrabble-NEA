@@ -1,5 +1,6 @@
 import pygame
 from numpy import transpose
+from math import floor
 import wordCheckAPI as wc
 from wordCheck import isWord
 
@@ -173,7 +174,7 @@ class Player:
         def __repr__(self) -> str:
                 return f"Player {self.id}\nName: {self.name}\nScore: {self.score}\nLetters: {self.letters}\n"
     
-        def takeLetters(self, letterbag: LetterBag):
+        def takeLetters(self, letterbag: LetterBag) -> None | bool:
                 for _ in range(7 - len(self.letters)):
                         letter = letterbag.getLetter()
                         if letter:
@@ -181,7 +182,7 @@ class Player:
                         else:
                                 return False, "The letter bag is empty!"
             
-        def placeLetter(self, letter: str, col: int, row: int, board: Board) -> None | bool:
+        def placeLetter(self, letter: str, col: int, row: int, board: Board) -> bool:
                 if self.letters:
                         return board.placeLetter(col, row, letter)
                 else:
@@ -209,7 +210,7 @@ class Simulation:
                         player
 
 
-def drawBoard() -> None:
+def drawBoard(board: Board) -> None:
         sideLength: float = 0.7 * HEIGHT
         gridLength: float = sideLength / 15
 
@@ -236,8 +237,8 @@ def drawRacks(names: dict[str: int]) -> None:
                         xPos, yPos = rackPosition(i, j)
                         
                         index: int = 2 * i + j
-                        numberOfTiles: int = list(names.items())[index - 1][1]
-                        drawRack(xPos, yPos, index, numberOfTiles)
+                        name, numberOfTiles = list(names.items())[index - 1]
+                        drawRack(xPos, yPos, name, numberOfTiles)
 
                         count -= 1
 
@@ -255,7 +256,7 @@ def rackPosition(i: int, j: int) -> tuple[float, float]:
                 xPos: float = (0.5 * WIDTH + 0.35 * HEIGHT) + (0.5 * WIDTH - 0.35 * HEIGHT) / 2 - 0.1 * WIDTH
         return xPos, yPos
         
-def drawRack(xPos: float, yPos: float, index: int, numberOfTiles: int) -> None:
+def drawRack(xPos: float, yPos: float, name: str, numberOfTiles: int) -> None:
         rackLength: float = 0.2 * WIDTH + 24
         rackHeight: float = rackLength / 7 + 10
         tileSide: float = rackLength / 7
@@ -269,16 +270,74 @@ def drawRack(xPos: float, yPos: float, index: int, numberOfTiles: int) -> None:
         pygame.draw.line(screen, BLACK, (xPos - 1, yPos), (xPos + rackLength + 1.5, yPos), width=5)
         # Bottom horizontal border
         pygame.draw.line(screen, BLACK, (xPos - 1, yPos + rackHeight - 2.5), (xPos + rackLength + 1.5, yPos + rackHeight - 2.5), width=5)
+        
+        nameText: pygame.Surface = mediumText.render(name, True, WHITE)
+        nameTextRect = nameText.get_rect()
+        nameTextRect.center = (xPos + rackLength / 2, yPos - 30)
+        screen.blit(nameText, nameTextRect)
 
+        scoreText: pygame.Surface = mediumText.render(f"Score: {0}", True, WHITE)
+        scoreTextRect = scoreText.get_rect()
+        scoreTextRect.center = (xPos + rackLength / 2, yPos + rackHeight + 30)
+        screen.blit(scoreText, scoreTextRect)
+
+        tileSide = tileSide - (24 / 7)
+        blankTileFilename: str = "TileImages/X1.png"
+        xTileStart: float = xPos + tileSide / 2 + 3
+        yTileStart: float = yPos + tileSide / 2 + 5
+        for tileIndex in range(numberOfTiles):
+                tileImage: pygame.Surface = pygame.image.load(blankTileFilename)
+                if tileImage.get_width() != tileImage.get_height() or tileImage.get_width() != tileSide:
+                        tileImage = pygame.transform.scale(tileImage, (tileSide, tileSide))
+                        filenameNew = filenameResized(blankTileFilename)
+                        pygame.image.save(tileImage, filenameNew)
+                tileImageRect: pygame.Rect = tileImage.get_rect()
+                xTile: float = xTileStart + tileIndex * (tileSide + 3)
+                tileImageRect.center = (xTile, yTileStart)
+                screen.blit(tileImage, tileImageRect)
+
+def filenameResized(filename: str) -> str:
+        filenameParts = filename.split("/")
+        filenameParts.insert(1, "Resized/")
+        filenameResized = "".join(filenameParts)
+        return filenameResized
+
+def isPointingAtBoard(x: int, y: int) -> bool:
+        startXPos: float = 0.5 * WIDTH - 0.35 * HEIGHT
+        endXPos: float = 0.5 * WIDTH + 0.35 * HEIGHT
+        startYPos: float = 0.15 * HEIGHT
+        endYPos: float = 0.85 * HEIGHT
+        if startXPos <= x <= endXPos and startYPos <= y <= endYPos:
+                return True
+        else:
+                return False
+
+def tilePointingAt(x: int, y: int) -> tuple[int, int]:
+        """Returns tuple (col, row) of the board tile the player is pointing at."""
+        startXPos: float = 0.5 * WIDTH - 0.35 * HEIGHT
+        startYPos: float = 0.15 * HEIGHT
+        gridLength: float = 0.7 * HEIGHT / 15
+
+        relativeX: float = x - startXPos
+        relativeY: float = y - startYPos
+        
+        col: int = floor(relativeX / gridLength)
+        row: int = floor(relativeY / gridLength)
+        return col, row
 
 # Main game
 def launchGame() -> None:
         pygame.display.set_caption("Scrabble Ultra")
 
         clock: pygame.time.Clock = pygame.time.Clock()
+
+        board: Board = Board()
+        players: list[Player]
+        playerCurrent: Player = Player()
+
+        # Initialize flags
         running: bool = True
-        screenWidth = pygame.display.Info().current_w
-        screenHeight = pygame.display.Info().current_h
+        isPlacingLetter: bool = True
 
         title = bigText.render("Scrabble Ultra", True, WHITE)
         titleRect = title.get_rect()
@@ -288,15 +347,31 @@ def launchGame() -> None:
 
                 screen.fill(GREENPOOL)
                 for event in pygame.event.get():
+                        # Quit game if top left "x" pressed
                         if event.type == pygame.QUIT:
                                 running = False
-
-                        if event.type == pygame.KEYDOWN:
+                        # Managing pressed keys
+                        elif event.type == pygame.KEYDOWN:
+                                # Quit game if "esc" key pressed
                                 if event.key == pygame.K_ESCAPE:
                                         running = False
+                        elif pygame.mouse.get_pressed()[0] == True:
+                                x, y = pygame.mouse.get_pos()
+                                if isPointingAtBoard(x, y):
+                                        col, row = tilePointingAt(x, y)
+                                        if isPlacingLetter:
+                                                playerCurrent.placeLetter("A", col, row, board)
                 
-                drawBoard()
-                drawRacks({"Oliver": 7, "Michael": 3, "Oscar": 4})
+                drawBoard(board)
+                drawRacks({"Oliver": 7, "Michael": 3, "Oscar": 4, "Cole": 7})
+                
+                # Displaying some useful info
+                x, y = pygame.mouse.get_pos()
+                info = bigText.render(f"{tilePointingAt(x, y)}", True, WHITE)
+                infoRect = info.get_rect()
+                infoRect.center = (WIDTH / 2, HEIGHT / 2)
+                screen.blit(info, infoRect)
+
                 screen.blit(title, titleRect)
 
                 pygame.display.flip()
