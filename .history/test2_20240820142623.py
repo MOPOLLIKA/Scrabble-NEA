@@ -1,0 +1,1 @@
+def decorator(func: function)

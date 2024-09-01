@@ -1,25 +1,20 @@
 import pygame
+import os
+import random
 from numpy import transpose
 from math import floor
 import wordCheckAPI as wc
 from wordCheck import isWord
-
-pygame.init()
 
 WHITE: tuple = (255, 255, 255)
 BLACK: tuple = (0, 0, 0)
 GREENPOOL: tuple = (10, 108, 3)
 BROWNDARK: tuple = (92, 64, 51)
 BROWNLIGHT: tuple = (196, 164, 132)
+
 # 1470:956 - the real resolution, 1280:800 - the chosen resolution
 WIDTH = 1470
 HEIGHT = 829
-
-screen: pygame.Surface = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
-
-bigText: pygame.font.Font = pygame.font.Font("helvetica-neue-5/HelveticaNeueLight.otf", 50)
-mediumText: pygame.font.Font = pygame.font.Font("helvetica-neue-5/HelveticaNeueLight.otf", 35)
-smallText: pygame.font.Font = pygame.font.Font("helvetica-neue-5/HelveticaNeueLight.otf", 20)
 
 LETTERS_SCORES: dict = {"A": 1, "B": 3, "C": 3, "D": 2, "E": 1, "F": 4, "G": 2, "H": 4, "I": 1, "J": 8, "K": 5, "L": 1, "M": 3, "N": 1, 
                         "O": 1, "P": 3,"Q": 10, "R": 1, "S": 1, "T": 1, "U": 1, "V": 4, "W": 4, "X": 8, "Y": 4, "Z": 10, "BLANK": 0}
@@ -120,6 +115,7 @@ class Board:
                 print("|", end="")
                 print("-" * 59, end="")
                 print("|", end="")
+                print()
                 return ""
     
         def printTypes(self) -> None:
@@ -136,10 +132,13 @@ class Board:
                 print("-" * 74, end="")
                 print("|", end="")
                 print()
+        
+        def getBoardElements(self) -> list[list[str]]:
+                return self.board
     
         def placeLetter(self, col: int, row: int, letter: str) -> bool:
-                if self.board[col][row] == " ":
-                        self.board[col][row] = letter
+                if self.board[row][col] == " ":
+                        self.board[row][col] = letter
                         return True
                 else:
                         return False
@@ -224,7 +223,22 @@ def drawBoard(board: Board) -> None:
         # drawing grid
         for i in range(15 + 1):
                 pygame.draw.line(screen, BLACK, (startXPos, startYPos + i * gridLength), (endXPos, startYPos + i * gridLength), 3) # horizontal
-                pygame.draw.line(screen, BLACK, (startXPos + i * gridLength, startYPos), (startXPos + i * gridLength, endYPos), 3) # vertical    
+                pygame.draw.line(screen, BLACK, (startXPos + i * gridLength, startYPos), (startXPos + i * gridLength, endYPos), 3) # vertical 
+
+        # drawing letter tiles
+        tileStartXPos: float = startXPos + (gridLength / 2)
+        tileStartYPos: float = startYPos + (gridLength / 2)
+        tiles = board.getBoardElements()
+        for row in range(15):
+                for col in range(15):
+                        letter = tiles[row][col]
+                        if letter == " ":
+                                continue
+                        tileFilenameRaw: str = letterToTileFilename(letter, isBoardSize=True)
+                        tileFilename: str = os.path.join("TileImagesBoard", tileFilenameRaw)
+                        xTile: float = tileStartXPos + (col * gridLength)
+                        yTile: float = tileStartYPos + (row * gridLength)
+                        drawTile(xTile, yTile, tileFilename)
 
 def drawRacks(names: dict[str: int]) -> None:
         """Variable `names` is in the following format: {'name1': numberOfTiles1, 'name2': numberOfTiles2, ...}"""
@@ -282,25 +296,32 @@ def drawRack(xPos: float, yPos: float, name: str, numberOfTiles: int) -> None:
         screen.blit(scoreText, scoreTextRect)
 
         tileSide = tileSide - (24 / 7)
-        blankTileFilename: str = "TileImages/X1.png"
+        blankTileFilename: str = "TileImagesRack/X1.png"
         xTileStart: float = xPos + tileSide / 2 + 3
         yTileStart: float = yPos + tileSide / 2 + 5
         for tileIndex in range(numberOfTiles):
+                """
                 tileImage: pygame.Surface = pygame.image.load(blankTileFilename)
                 if tileImage.get_width() != tileImage.get_height() or tileImage.get_width() != tileSide:
                         tileImage = pygame.transform.scale(tileImage, (tileSide, tileSide))
                         filenameNew = filenameResized(blankTileFilename)
                         pygame.image.save(tileImage, filenameNew)
                 tileImageRect: pygame.Rect = tileImage.get_rect()
+                """
                 xTile: float = xTileStart + tileIndex * (tileSide + 3)
-                tileImageRect.center = (xTile, yTileStart)
-                screen.blit(tileImage, tileImageRect)
+                drawTile(xTile, yTileStart, blankTileFilename)
 
-def filenameResized(filename: str) -> str:
+def drawTile(x: float, y: float, tileFilename: str) -> None:
+        tile: pygame.Surface = pygame.image.load(tileFilename)
+        tileRect: pygame.Rect = tile.get_rect()
+        tileRect.center = (x, y)
+        screen.blit(tile, tileRect)
+
+def filenameAdjusted(filename: str, adjustment: str) -> str:
         filenameParts = filename.split("/")
-        filenameParts.insert(1, "Resized/")
-        filenameResized = "".join(filenameParts)
-        return filenameResized
+        filenameParts[-2] += adjustment
+        filenameAdjusted = "/".join(filenameParts)
+        return filenameAdjusted
 
 def isPointingAtBoard(x: int, y: int) -> bool:
         startXPos: float = 0.5 * WIDTH - 0.35 * HEIGHT
@@ -311,6 +332,21 @@ def isPointingAtBoard(x: int, y: int) -> bool:
                 return True
         else:
                 return False
+        
+def resizeFolderImages(folderPath: str, size: tuple[int, int], adjustment: str) -> None:
+        for (dir_path, dir_names, file_names) in os.walk(folderPath):
+                for fileName in file_names:
+                        if fileName.split(".")[-1] != "png":
+                                continue
+                        imagePath: str = os.path.join(folderPath, fileName)
+                        imageRaw: pygame.Surface = pygame.image.load(imagePath)
+                        imageResized: pygame.Surface = pygame.transform.scale(imageRaw, size)
+                        newFolderPath = folderPath + adjustment
+                        os.mkdir(newFolderPath) if not os.path.exists(newFolderPath) else None
+                        path: str = os.path.join(newFolderPath, fileName)
+                        with open(path, "w") as f:
+                                pygame.image.save(imageResized, path)
+                                f.close()
 
 def tilePointingAt(x: int, y: int) -> tuple[int, int]:
         """Returns tuple (col, row) of the board tile the player is pointing at."""
@@ -325,9 +361,21 @@ def tilePointingAt(x: int, y: int) -> tuple[int, int]:
         row: int = floor(relativeY / gridLength)
         return col, row
 
+def letterToTileFilename(letter: str, isBoardSize: bool) -> str:
+        folderPath: str
+        if isBoardSize:
+                folderPath = "TileImagesBoard"
+        else:
+                folderPath = "TileImagesRack"
+
+        for (dir_path, dir_names, file_names) in os.walk(folderPath):
+                fileNamesSorted: list = list(filter(lambda x: x[0] == letter, file_names))
+                tileFilename: str = random.choice(fileNamesSorted)
+                return tileFilename
+
 # Main game
 def launchGame() -> None:
-        pygame.display.set_caption("Scrabble Ultra")
+        pygame.display.set_caption("Atomic Scrabble")
 
         clock: pygame.time.Clock = pygame.time.Clock()
 
@@ -339,7 +387,7 @@ def launchGame() -> None:
         running: bool = True
         isPlacingLetter: bool = True
 
-        title = bigText.render("Scrabble Ultra", True, WHITE)
+        title = bigText.render("Atomic Scrabble", True, WHITE)
         titleRect = title.get_rect()
         titleRect.center = (WIDTH / 2, 0.1 * HEIGHT)
 
@@ -360,7 +408,7 @@ def launchGame() -> None:
                                 if isPointingAtBoard(x, y):
                                         col, row = tilePointingAt(x, y)
                                         if isPlacingLetter:
-                                                playerCurrent.placeLetter("A", col, row, board)
+                                                board.placeLetter(col, row, "A")
                 
                 drawBoard(board)
                 drawRacks({"Oliver": 7, "Michael": 3, "Oscar": 4, "Cole": 7})
@@ -382,15 +430,13 @@ def launchGame() -> None:
 
 
 if __name__ == "__main__":
-        board = Board()
-        board.placeLetter(1, 2, "A")
-        board.placeLetter(2, 2, "T")
-        board.placeLetter(3, 2, "T")
-        board.placeLetter(4, 2, "O")
-        board.placeLetter(5, 2, "R")
-        board.placeLetter(6, 2, "N")
-        board.placeLetter(7, 2, "E")
-        board.placeLetter(8, 2, "Y")
-        board.printTypes()
+        pygame.init()
+
+        screen: pygame.Surface = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
+
+        bigText: pygame.font.Font = pygame.font.Font("helvetica-neue-5/HelveticaNeueLight.otf", 50)
+        mediumText: pygame.font.Font = pygame.font.Font("helvetica-neue-5/HelveticaNeueLight.otf", 35)
+        smallText: pygame.font.Font = pygame.font.Font("helvetica-neue-5/HelveticaNeueLight.otf", 20)
+
         #import sys; sys.exit()
         launchGame()
