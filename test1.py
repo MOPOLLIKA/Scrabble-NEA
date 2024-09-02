@@ -2,6 +2,7 @@ from Scrabble import findWordsInRow, Board, resizeFolderImages, resizeFolderImag
 import wordCheckAPI as wc
 import pygame
 import os
+import math
 
 
 def checkWordScan() -> None:
@@ -22,8 +23,9 @@ WIDTH = 1470
 HEIGHT = 829
 
 boardSide: float = 0.7 * HEIGHT / 15 - 3
+typeTileBoardSize: float = boardSide * math.sqrt(2)
 rackSide: float = 0.2 * WIDTH / 7 - 3
-resizeFolderImages("TileImages", (boardSide, boardSide), "Board")
+resizeFolderImages("TypeTileImages", (typeTileBoardSize, typeTileBoardSize), "Board")
 """
 letter: str = "A"
 path = letterToTileFilename(letter, True)

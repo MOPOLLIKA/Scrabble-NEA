@@ -1,6 +1,7 @@
 import pygame
 import os
 import random
+from typing import Iterable
 from numpy import transpose
 from math import floor
 import wordCheckAPI as wc
@@ -90,7 +91,7 @@ class Board:
                 # initialise tile types
                 for row in range(15):
                         for col in range(15):
-                                if col in {0, 7, 14} and row in {0, 7, 14} and (col != 7 and row != 7):
+                                if (col in {0, 7, 14} and row in {0, 7, 14}) and not (col == 7 and row == 7):
                                         self.boardTypes[row][col] = "TW"
                                 elif (col in {3, 11} and row in {0, 7, 14}) or (col in {0, 7, 14} and row in {3, 11}) or\
                                 (col in {6, 8} and row in {2, 6, 8, 12}) or (col in {2, 12} and row in {6, 8}):
@@ -132,9 +133,6 @@ class Board:
                 print("-" * 74, end="")
                 print("|", end="")
                 print()
-        
-        def getBoardElements(self) -> list[list[str]]:
-                return self.board
     
         def placeLetter(self, col: int, row: int, letter: str) -> bool:
                 if self.board[row][col] == " ":
@@ -151,6 +149,12 @@ class Board:
                         colElements = list(colElements)
                         wordsFound += findWordsInRow(colElements)[0]
                 return wordsFound
+        
+        def getBoardElements(self) -> list[list[str]]:
+                return self.board
+        
+        def getBoardTypes(self) -> list[list[str]]:
+                return self.boardTypes
 
 def findWordsInRow(rowElements) -> tuple[list, bool]:
         row: str = "".join(rowElements)
@@ -164,18 +168,19 @@ class Player:
         ID = 1
 
         def __init__(self) -> None:
-                self.letters = []
-                self.score = 0
-                self.id = Player.ID
-                self.name = input(f"Please enter Player {self.id} name: ")
+                self.letters: list[str] = [] # list of letter locations(or mb just letters)
+                self.score: int = 0
+                self.id: int = Player.ID
+                self.name: str = f"Player {self.id}" # implement name selection later in the settings TODO
+                self.active: bool = False
                 Player.ID += 1
 
         def __repr__(self) -> str:
-                return f"Player {self.id}\nName: {self.name}\nScore: {self.score}\nLetters: {self.letters}\n"
+                return f"Player {self.id}, Name: {self.name}, Score: {self.score}, Letters: {self.letters}\n"
     
-        def takeLetters(self, letterbag: LetterBag) -> None | bool:
+        def takeLetters(self, letterBag: LetterBag) -> None | bool:
                 for _ in range(7 - len(self.letters)):
-                        letter = letterbag.getLetter()
+                        letter = letterBag.getLetter()
                         if letter:
                                 self.letters.append(letter)
                         else:
@@ -186,6 +191,27 @@ class Player:
                         return board.placeLetter(col, row, letter)
                 else:
                         return False
+                
+        def adjustScore(self, adjustment: int):
+                self.score += adjustment
+
+        def switchActive(self) -> None:
+                self.active = not self.active
+
+        def isActive(self) -> bool:
+                return self.active
+        
+        def getNumberOfTiles(self) -> int:
+                return len(self.letters)
+        
+        def getLetters(self) -> list[str]:
+                return self.letters
+        
+        def getId(self) -> int:
+                return self.id
+        
+        def getName(self) -> str:
+                return self.name
                 
 
 class Simulation:
@@ -208,6 +234,25 @@ class Simulation:
                 for player in self.players:
                         player
 
+class PlayerQueue:
+        def __init__(self, players: Iterable[Player]):
+                self.queue: list[Player] = [player for player in players]
+                self.originalElements: list[Player] = self.queue.copy()
+                self.length: int = len(self.queue)
+        
+        def nextTurn(self) -> Player:
+                playerPrevious: Player = self.queue[-1]
+                playerPrevious.switchActive()
+                playerNext: Player = self.queue.pop(0)
+                playerNext.switchActive()
+                self.queue.insert(self.length, playerNext)
+                return playerNext
+        
+        def getOriginalElements(self) -> list[Player]:
+                return self.originalElements
+        
+        def getLength(self) -> int:
+                return self.length
 
 def drawBoard(board: Board) -> None:
         sideLength: float = 0.7 * HEIGHT
@@ -228,21 +273,36 @@ def drawBoard(board: Board) -> None:
         # drawing letter tiles
         tileStartXPos: float = startXPos + (gridLength / 2)
         tileStartYPos: float = startYPos + (gridLength / 2)
-        tiles = board.getBoardElements()
+        tiles: list[list[str]] = board.getBoardElements()
+        types: list[list[str]] = board.getBoardTypes()
         for row in range(15):
                 for col in range(15):
+                        xTile: float = tileStartXPos + (col * gridLength)
+                        yTile: float = tileStartYPos + (row * gridLength)
+
+                        typeTile: str = types[row][col]
+                        if typeTile == "LR":
+                                continue
+                        typeTileFilename: str = os.path.join("TypeTileImagesBoard", typeTile + ".png")
+                        drawTile(xTile, yTile, typeTileFilename)
+        
+        for row in range(15):
+                for col in range(15):
+                        xTile: float = tileStartXPos + (col * gridLength)
+                        yTile: float = tileStartYPos + (row * gridLength)
+
                         letter = tiles[row][col]
                         if letter == " ":
                                 continue
-                        tileFilenameRaw: str = letterToTileFilename(letter, isBoardSize=True)
+                        key: int = (row + 1) * (col + 1)
+                        tileFilenameRaw: str = letterToTileFilename(letter, key, isBoardSize=True)
                         tileFilename: str = os.path.join("TileImagesBoard", tileFilenameRaw)
-                        xTile: float = tileStartXPos + (col * gridLength)
-                        yTile: float = tileStartYPos + (row * gridLength)
                         drawTile(xTile, yTile, tileFilename)
 
-def drawRacks(names: dict[str: int]) -> None:
+def drawRacks(playerQueue: PlayerQueue) -> None:
         """Variable `names` is in the following format: {'name1': numberOfTiles1, 'name2': numberOfTiles2, ...}"""
-        count: int = len(names)
+        count: int = playerQueue.getLength()
+        players: list[Player] = playerQueue.getOriginalElements()
         for i in range(2):
                 for j in range(2):
                         if count == 0:
@@ -250,9 +310,10 @@ def drawRacks(names: dict[str: int]) -> None:
 
                         xPos, yPos = rackPosition(i, j)
                         
-                        index: int = 2 * i + j
-                        name, numberOfTiles = list(names.items())[index - 1]
-                        drawRack(xPos, yPos, name, numberOfTiles)
+                        index: int = 2 * i + j - 1
+                        player: Player = players[index]
+
+                        drawRack(xPos, yPos, player)
 
                         count -= 1
 
@@ -269,8 +330,12 @@ def rackPosition(i: int, j: int) -> tuple[float, float]:
         else:
                 xPos: float = (0.5 * WIDTH + 0.35 * HEIGHT) + (0.5 * WIDTH - 0.35 * HEIGHT) / 2 - 0.1 * WIDTH
         return xPos, yPos
-        
-def drawRack(xPos: float, yPos: float, name: str, numberOfTiles: int) -> None:
+
+def drawRack(xPos: float, yPos: float, player: Player) -> None:
+        letters: list[str] = player.getLetters()
+        name: str = player.getName()
+        numberOfTiles: int = player.getNumberOfTiles()
+
         rackLength: float = 0.2 * WIDTH + 24
         rackHeight: float = rackLength / 7 + 10
         tileSide: float = rackLength / 7
@@ -296,7 +361,6 @@ def drawRack(xPos: float, yPos: float, name: str, numberOfTiles: int) -> None:
         screen.blit(scoreText, scoreTextRect)
 
         tileSide = tileSide - (24 / 7)
-        blankTileFilename: str = "TileImagesRack/X1.png"
         xTileStart: float = xPos + tileSide / 2 + 3
         yTileStart: float = yPos + tileSide / 2 + 5
         for tileIndex in range(numberOfTiles):
@@ -309,7 +373,17 @@ def drawRack(xPos: float, yPos: float, name: str, numberOfTiles: int) -> None:
                 tileImageRect: pygame.Rect = tileImage.get_rect()
                 """
                 xTile: float = xTileStart + tileIndex * (tileSide + 3)
-                drawTile(xTile, yTileStart, blankTileFilename)
+                isActive: bool = player.isActive()
+
+                tileFilename: str
+                if isActive:
+                        letter: str = letters[tileIndex]
+                        key: int = player.getId ** 3
+                        tileFilename: str = letterToTileFilename(letter, key, isBoardSize=False)
+                else:
+                        tileFilename: str = "TileImagesRack/Blank1.png"
+
+                drawTile(xTile, yTileStart, tileFilename)
 
 def drawTile(x: float, y: float, tileFilename: str) -> None:
         tile: pygame.Surface = pygame.image.load(tileFilename)
@@ -361,7 +435,7 @@ def tilePointingAt(x: int, y: int) -> tuple[int, int]:
         row: int = floor(relativeY / gridLength)
         return col, row
 
-def letterToTileFilename(letter: str, isBoardSize: bool) -> str:
+def letterToTileFilename(letter: str, key: int, isBoardSize: bool) -> str:
         folderPath: str
         if isBoardSize:
                 folderPath = "TileImagesBoard"
@@ -370,7 +444,10 @@ def letterToTileFilename(letter: str, isBoardSize: bool) -> str:
 
         for (dir_path, dir_names, file_names) in os.walk(folderPath):
                 fileNamesSorted: list = list(filter(lambda x: x[0] == letter, file_names))
-                tileFilename: str = random.choice(fileNamesSorted)
+                numberOfPossibleTiles: int = len(fileNamesSorted)
+                # getting a variant of a tile from a hashing function - hash keys are the (row, col) postition tuples
+                index: int = (key + 7) % numberOfPossibleTiles
+                tileFilename: str = fileNamesSorted[index]
                 return tileFilename
 
 # Main game
@@ -380,8 +457,19 @@ def launchGame() -> None:
         clock: pygame.time.Clock = pygame.time.Clock()
 
         board: Board = Board()
-        players: list[Player]
-        playerCurrent: Player = Player()
+        
+        # Initialize main objects
+        letterBag: LetterBag = LetterBag()
+
+        player1: Player = Player()
+        player2: Player = Player()
+        player3: Player = Player()
+        player4: Player = Player()
+
+        players: list[Player] = [player1, player2, player3, player4]
+        for player in players:
+                player.takeLetters(letterBag)
+        playerQueue: PlayerQueue = PlayerQueue(players)
 
         # Initialize flags
         running: bool = True
@@ -389,7 +477,7 @@ def launchGame() -> None:
 
         title = bigText.render("Atomic Scrabble", True, WHITE)
         titleRect = title.get_rect()
-        titleRect.center = (WIDTH / 2, 0.1 * HEIGHT)
+        titleRect.center = (WIDTH / 2, 0.05 * HEIGHT)
 
         while running:
 
@@ -409,9 +497,10 @@ def launchGame() -> None:
                                         col, row = tilePointingAt(x, y)
                                         if isPlacingLetter:
                                                 board.placeLetter(col, row, "A")
+                                
                 
                 drawBoard(board)
-                drawRacks({"Oliver": 7, "Michael": 3, "Oscar": 4, "Cole": 7})
+                drawRacks(playerQueue)
                 
                 # Displaying some useful info
                 x, y = pygame.mouse.get_pos()
