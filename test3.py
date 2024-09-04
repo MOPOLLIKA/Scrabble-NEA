@@ -1,5 +1,5 @@
 from Scrabble import PlayerQueue, Player
 
-players: list[Player] = [Player() for _ in range(3)]
-queue: PlayerQueue = PlayerQueue(players)
-print(queue.nextTurn())
+letter: str = "A"
+print(ord(letter))
+print(chr(100))
