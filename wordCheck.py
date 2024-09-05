@@ -79,7 +79,7 @@ def createMyDictionary() -> None:
                 json.dump(words, f)
 
 if __name__ == "__main__":
-        print(getDefinition("pets"))
+        print(getDefinition("starting"))
 
 
         
