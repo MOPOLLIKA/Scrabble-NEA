@@ -1,10 +1,10 @@
 import pygame
 import os
 import random
+import time
+import wordCheckAPI as wc
 from typing import Iterable, Literal
 from numpy import transpose
-from math import floor
-import wordCheckAPI as wc
 from wordCheck import isWord
 
 WHITE: tuple = (255, 255, 255)
@@ -52,10 +52,36 @@ def indicateTile(tileType: str) -> str:
                         highlighting = ""
         return highlight(tileType, highlighting)
 
+def letterMultiplicator(tileType: str) -> int:
+        match tileType:
+                case "DL":
+                        return 2
+                case "TL":
+                        return 2
+                case _:
+                        return 1
+
+def wordMultiplicator(tileType: str) -> int:
+        match tileType:
+                case "DW":
+                        return 2
+                case "TW":
+                        return 3
+                case "ST":
+                        return 2
+                case _:
+                        return 1
+
 def listToStr(lst: list) -> str:
         result: str = ""
         for letter in lst:
                 result += letter
+        return result
+
+def lettersTransform(dct: dict) -> list:
+        result: list = []
+        for letter, numberOfLetters in dct.items():
+                result += [letter for _ in range(numberOfLetters)]
         return result
 
 
@@ -79,9 +105,9 @@ class LetterBag:
         
         def getLetter(self) -> str:
                 if not self.isEmpty():
-                        lettersAvailable: set = list(filter(lambda x: self.bag[x] != 0, self.bag.keys()))
-                        random.shuffle(lettersAvailable)
-                        letter: str = lettersAvailable.pop()
+                        lettersTransformed: list = lettersTransform(self.bag)
+                        index = random.randint(0, len(lettersTransformed) - 1)
+                        letter: str = lettersTransformed.pop(index)
                         self.bag[letter] -= 1
                         return letter
                 else:
@@ -147,6 +173,9 @@ class Board:
                 if self.board[row][col] != " ":
                         return 
                 self.board[row][col] = letter
+
+        def removeLetter(self, col: int, row: int) -> None:
+                self.board[row][col] = " "
                 
         def searchForWords(self) -> list:
                 wordsFound: list = []
@@ -167,20 +196,25 @@ class Board:
                                 # searching for a word horizontally
                                 left: list = scanLeft(col, row, self.board)
                                 right: list = scanRight(col, row, self.board)
-                                horizontalWord: str = left + letter + right
+                                horizontalWord: str = listToStr(left) + letter + listToStr(right)
                                 if len(horizontalWord) != 1 and not isWord(horizontalWord):
                                         return False
                                 
                                 # searching for a word vertically
                                 up: list = scanUp(col, row, self.board)
                                 down: list = scanDown(col, row, self.board)
-                                verticalWord: str = up + letter + down
+                                verticalWord: str = listToStr(up) + letter + listToStr(down)
                                 if len(verticalWord) != 1 and not isWord(verticalWord):
                                         return False
                                 
-                                # check if it is a single letter, pertaining to no word on the board
+                                # check if it is a single standalone letter, pertaining to no word on the board
                                 if len(horizontalWord) == 1 and len(verticalWord) == 1:
                                         return False
+                # checks whether a letter is placed on the starting tile at the start of the game
+                if self.isFirstTurn:
+                        if self.board[7][7] == " ":
+                                return False
+                        
                 return True
 
         
@@ -190,7 +224,7 @@ class Board:
         def getBoardTypes(self) -> list[list[str]]:
                 return self.boardTypes
         
-def scanLeft(col: int, row: int, board: list[list[str]]) -> str:
+def scanLeft(col: int, row: int, board: list[list[str]]) -> list:
         result: list = []
         step: int = -1
         letterCurrent: str = ""
@@ -203,10 +237,9 @@ def scanLeft(col: int, row: int, board: list[list[str]]) -> str:
                 letterCurrent = board[row][col]
         result.remove("")
         result.reverse()
-        result = listToStr(result)
         return result
         
-def scanRight(col: int, row: int, board: list[list[str]]) -> str:
+def scanRight(col: int, row: int, board: list[list[str]]) -> list:
         result: list = []
         step: int = 1
         letterCurrent: str = ""
@@ -218,10 +251,9 @@ def scanRight(col: int, row: int, board: list[list[str]]) -> str:
                         break
                 letterCurrent = board[row][col]
         result.remove("")
-        result = listToStr(result)
         return result
         
-def scanUp(col: int, row: int, board: list[list[str]]) -> str:
+def scanUp(col: int, row: int, board: list[list[str]]) -> list:
         result: list = []
         step: int = -1
         letterCurrent: str = ""
@@ -234,10 +266,9 @@ def scanUp(col: int, row: int, board: list[list[str]]) -> str:
                 letterCurrent = board[row][col]
         result.remove("")
         result.reverse()
-        result = listToStr(result)
         return result
         
-def scanDown(col: int, row: int, board: list[list[str]]) -> str:
+def scanDown(col: int, row: int, board: list[list[str]]) -> list:
         result: list = []
         step: int = 1
         letterCurrent: str = ""
@@ -249,7 +280,6 @@ def scanDown(col: int, row: int, board: list[list[str]]) -> str:
                         break
                 letterCurrent = board[row][col]
         result.remove("")
-        result = listToStr(result)
         return result
 
 
@@ -267,6 +297,7 @@ class Player:
         def __init__(self) -> None:
                 self.letters: list[str] = []
                 self.score: int = 0
+                self._temporaryScore: int = 0
                 self.id: int = Player.ID
                 self.name: str = f"Player {self.id}" # implement name selection later in the settings TODO
                 self.active: bool = False
@@ -295,8 +326,11 @@ class Player:
                 self.letters.remove(letter)
                 board.placeLetter(col, row, letter)
                 
-        def adjustScore(self, adjustment: int):
+        def adjustScore(self, adjustment: int) -> None:
                 self.score += adjustment
+
+        def setTemporaryScore(self, score: int) -> None:
+                self._temporaryScore = score
 
         def switchActive(self) -> None:
                 self.active = not self.active
@@ -310,6 +344,9 @@ class Player:
         def isPlacingLetter(self) -> bool:
                 return self.placingLetter
         
+        def getTemporaryScore(self) -> int:
+                return self._temporaryScore
+        
         def getNumberOfTiles(self) -> int:
                 return len(self.letters)
         
@@ -321,6 +358,9 @@ class Player:
         
         def getName(self) -> str:
                 return self.name
+        
+        def getScore(self) -> int:
+                return self.score
                 
 
 class Simulation:
@@ -370,15 +410,123 @@ class PlayerQueue:
 
 class Turn:
         def __init__(self):
-                self.turn: dict = {} # {"A": (col1, row1), "C": (col1, row1)}
-        
-        def add(self, letter: dict, coords: tuple["col": int, "row": int]) -> None:
-                self.turn[letter] = coords
-        
-        def calculateScore(self, boardBeforeTurn: Board):
-                #TODO stopped here
-        
+                self.turn: list[tuple] = [] # [(col1, row1), (col2, row2), ..., (coln, rown)]
 
+        def add(self, coords: tuple["col": int, "row": int]) -> None:
+                self.turn.append(coords)
+
+        def remove(self, coords: tuple["col": int, "row": int]) -> None:
+                self.turn.remove(coords)
+
+        def isValid(self) -> bool:
+                if not self.turn:
+                        return False
+                if len(self.turn) == 1:
+                        return True
+                
+                cols: list[int] = [col for col, _ in self.turn]
+                uniqueCols: list[int] = set(cols)
+                rows: list[int] = [row for _, row in self.turn]
+                uniqueRows: list[int] = set(rows)
+                if (len(uniqueCols) == 1 and len(uniqueRows) >= 1) or (len(uniqueCols) >= 1 and len(uniqueRows) == 1):
+                        return True
+                else:
+                        return False
+
+        # calling this method only occurs after checking turn.isValid() and board.isValid()
+        def calculateScore(self, board: Board) -> int:
+                """
+                To calculate score, every move(tile placed) is inspected to find if there are any connected words to it horizontally
+                and then vertically. When it finds such a connection, it goes through the word and inspects each tile on the matter 
+                of whether it was placed during the turn(that allows multiplicators that could be activating the letter
+                work properly - multiplicators don't work twice) and what score does this letter represent. Then the score of each 
+                letter is multiplied by letterMultiplicator of the board cell, the results added and multiplied by wordMultiplicator.
+                Also, the multiplicators should work for all simultaneous words in 
+                """
+                score: int = 0
+                usedHorizontalWords: dict[str, list[tuple]] = {} # {"ADD": [(colA, rowA), (colD, rowD), (colD, rowD)], ...}
+                usedVerticalWords: dict[str, list[tuple]] = {} 
+                boardElements = board.getBoardElements()
+                boardTypes = board.getBoardTypes()
+
+                for col, row in self.turn:
+                        letter: str = boardElements[row][col]
+
+                        # searching for a word horizontally
+                        left: list = scanLeft(col, row, boardElements)
+                        right: list = scanRight(col, row, boardElements)
+                        horizontalWord: str = listToStr(left) + letter + listToStr(right)
+
+                        if (not isWord(horizontalWord)) or (horizontalWord in usedHorizontalWords):
+                                continue
+
+                        # going through the horizontal word found connected to the (col, row) tile
+                        usedHorizontalWords[horizontalWord] = []
+                        colWord: int = col - len(left)
+                        rowWord: int = row
+                        horizontalScore: int = 0
+                        wordMult: int = 1
+                        tileType: str
+                        for wordLetter in horizontalWord:
+                                if (colWord, rowWord) in self.turn:
+                                        # if the tile is in the turn, then apply all the multiplicators
+                                        tileType = boardTypes[rowWord][colWord]
+                                else:
+                                        # else it is a standard letter with no multiplicator, even if the tile contained some multiplicator
+                                        tileType = "LR"
+
+                                wordMult *= wordMultiplicator(tileType)
+                                letterMult = letterMultiplicator(tileType)
+                                usedHorizontalWords[horizontalWord].append((colWord, rowWord))
+                                letterScore: int = LETTERS_SCORES[wordLetter]
+                                horizontalScore += letterScore * letterMult
+
+                                colWord = colWord + 1
+                                rowWord = rowWord
+                        horizontalScore *= wordMult
+                        score += horizontalScore
+
+                for col, row in self.turn:
+                        letter: str = boardElements[row][col]
+
+                         # searching for a word vertically
+                        up: list = scanUp(col, row, boardElements)
+                        down: list = scanDown(col, row, boardElements)
+                        verticalWord: str = listToStr(up) + letter + listToStr(down)
+
+                        if (not isWord(verticalWord)) or (verticalWord in usedVerticalWords):
+                                continue
+
+                        # going through the vertical word found connected to the (col, row) tile
+                        usedVerticalWords[verticalWord] = []
+                        colWord: int = col
+                        rowWord: int = row - len(up)
+                        verticalScore: int = 0
+                        wordMult: int = 1
+                        tileType: str
+                        for wordLetter in verticalWord:
+                                if (colWord, rowWord) in self.turn:
+                                        # if the tile is in the turn, then apply all the multiplicators
+                                        tileType = boardTypes[rowWord][colWord]
+                                else:
+                                        # else it is a standard letter with no multiplicator, even if the tile contained some multiplicator
+                                        tileType = "LR"
+
+                                wordMult *= wordMultiplicator(tileType)
+                                letterMult = letterMultiplicator(tileType)
+                                usedVerticalWords[verticalWord].append((colWord, rowWord))
+                                letterScore: int = LETTERS_SCORES[wordLetter]
+                                verticalScore += letterScore * letterMult
+
+                                colWord = colWord
+                                rowWord = rowWord + 1
+                        verticalScore *= wordMult
+                        score += verticalScore
+
+                return score
+        
+        def getTurn(self) -> list[tuple]:
+                return self.turn
 
 
 def drawBoard(board: Board) -> None:
@@ -457,11 +605,11 @@ def drawRacks(playerQueue: PlayerQueue) -> None:
                                 break
 
                         xPos, yPos = rackPosition(i, j)
-                        
                         index: int = 2 * j + i
                         player: Player = players[index]
+                        temporaryScore = player.getTemporaryScore()
 
-                        drawRack(xPos, yPos, player)
+                        drawRack(xPos, yPos, player, temporaryScore)
 
                         count -= 1
 
@@ -505,10 +653,10 @@ def rackPointingAt(x: int, y: int) -> Literal[0, 1, 2, 3, 4]:
 def tilePointingAtRack(x: int, xRack: int) -> Literal[0, 1, 2, 3, 4, 5, 6]:
         relativeX: int = x - xRack
         tileSide = (0.2 * WIDTH + 24) / 7
-        index: int = floor(relativeX / tileSide)
+        index: int = int(relativeX / tileSide)
         return index
 
-def drawRack(xPos: float, yPos: float, player: Player) -> None:
+def drawRack(xPos: float, yPos: float, player: Player, temporaryScore: int) -> None:
         letters: list[str] = player.getLetters()
         name: str = player.getName()
         numberOfTiles: int = player.getNumberOfTiles()
@@ -532,7 +680,12 @@ def drawRack(xPos: float, yPos: float, player: Player) -> None:
         nameTextRect.center = (xPos + rackLength / 2, yPos - 30)
         screen.blit(nameText, nameTextRect)
 
-        scoreText: pygame.Surface = mediumText.render(f"Score: {0}", True, WHITE)
+        text: str
+        if temporaryScore == 0:
+                text = f"Score: {player.getScore()}"
+        else:
+                text = f"Score: {player.getScore()} + {temporaryScore}"
+        scoreText: pygame.Surface = mediumText.render(text, True, WHITE)
         scoreTextRect = scoreText.get_rect()
         scoreTextRect.center = (xPos + rackLength / 2, yPos + rackHeight + 30)
         screen.blit(scoreText, scoreTextRect)
@@ -624,8 +777,8 @@ def tilePointingAtBoard(x: int, y: int) -> tuple[int, int]:
         relativeX: float = x - startXPos
         relativeY: float = y - startYPos
         
-        col: int = floor(relativeX / gridLength)
-        row: int = floor(relativeY / gridLength)
+        col: int = int(relativeX / gridLength)
+        row: int = int(relativeY / gridLength)
         return col, row
 
 def letterToTileFilename(letter: str, key: int, isBoardSize: bool) -> str:
@@ -712,14 +865,36 @@ def launchGame() -> None:
                                         running = False
                         elif pygame.mouse.get_pressed()[0] == True:
                                 x, y = pygame.mouse.get_pos()
+                                col, row = tilePointingAtBoard(x, y)
+
+                                if (col, row) in turn.getTurn():
+                                        letterRemoving = board.getBoardElements()[row][col]
+                                        board.removeLetter(col, row)
+                                        turn.remove((col, row))
+                                        playerCurrent.addLetter(letterRemoving)
+
+                                        if board.isValid() and turn.isValid():
+                                                temporaryScore = turn.calculateScore(board)
+                                        else:
+                                                temporaryScore = 0
+                                        playerCurrent.setTemporaryScore(temporaryScore)
 
                                 # place letter tiles at the cursor position if a letter is selected
-                                if isPointingAtBoard(x, y):
-                                        col, row = tilePointingAtBoard(x, y)
-                                        if playerCurrent.isPlacingLetter():
-                                                playerCurrent.placeLetter(letterPlacing, col, row, board)
-                                                playerCurrent.switchLetterPlacement()
-                                                isHighlighted = False
+                                if isPointingAtBoard(x, y) and playerCurrent.isPlacingLetter():
+                                        playerCurrent.placeLetter(letterPlacing, col, row, board)
+                                        turn.add((col, row))
+                                        letterPlacing = ""
+                                        playerCurrent.switchLetterPlacement()
+                                        isHighlighted = False
+
+                                        if board.isValid() and turn.isValid():
+                                                temporaryScore = turn.calculateScore(board)
+                                        else:
+                                                temporaryScore = 0
+                                        playerCurrent.setTemporaryScore(temporaryScore)
+
+                                        # skipping 3 frames, so that the tile is not deleted immediately
+                                        time.sleep(3 / 60)
                                 
                                 # select a letter at the current player's rack
                                 rackIndex: int = rackPointingAt(x, y)
@@ -740,11 +915,11 @@ def launchGame() -> None:
                                                 highlightedTileParams["index"] = tileIndex
                                                 highlightedTileParams["color"] = (255, 0, 0)
                                                 highlightedTileParams["player"] = playerCurrent
-                
+                # Draws board and player racks
                 drawBoard(board)
                 drawRacks(playerQueue)
 
-                if isHighlighted:
+                if isHighlighted and letterPlacing:
                         highlightTileFrameRack(highlightedTileParams["xRack"], 
                                                highlightedTileParams["yRack"], 
                                                highlightedTileParams["index"],
