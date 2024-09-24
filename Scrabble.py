@@ -59,7 +59,7 @@ def letterMultiplicator(tileType: str) -> int:
                 case "DL":
                         return 2
                 case "TL":
-                        return 2
+                        return 3
                 case _:
                         return 1
 
@@ -197,7 +197,7 @@ class Board:
                                 letter: str = self.board[row][col]
                                 if letter == " ":
                                         continue
-
+                                
                                 # searching for a word horizontally
                                 left: list = scanLeft(col, row, self.board)
                                 right: list = scanRight(col, row, self.board)
@@ -302,7 +302,8 @@ class Player:
                 self.letters.append(letter)
 
         def removeLetter(self, letter: str) -> None:
-                self.letters.remove(letter)
+                if not letter == " ":
+                        self.letters.remove(letter)
             
         def placeLetter(self, letter: str, col: int, row: int, board: Board) -> None:
                 if not self.letters:
@@ -716,7 +717,7 @@ def drawFinishTurnButton() -> None:
         textRect.center = buttonRect.center
         screen.blit(text, textRect)
 
-def drawExchangeTilesButton() -> None:
+def drawExchangeTilesButton(isHighlighted: bool) -> None:
         length = (0.2*WIDTH + 24)/2
         height = 0.1 * HEIGHT
         top = 0.5*HEIGHT - height/2
@@ -729,11 +730,13 @@ def drawExchangeTilesButton() -> None:
         textRect = text.get_rect()
         textRect.center = buttonRect.center
         screen.blit(text, textRect)
+        if isHighlighted:
+                pygame.draw.rect(screen, RED, buttonRect, width=3)
 
 def isPointingAtFinishButton(x: int, y: int) -> bool:
         length = (0.2*WIDTH + 24)/2
         height = 0.1 * HEIGHT
-        top = 0.5*HEIGHT - height
+        top = 0.5*HEIGHT - height/2
         left = (0.5*WIDTH + 0.35*HEIGHT) + (0.5*WIDTH - 0.35*HEIGHT)/2 - 0.1*WIDTH + (0.2*WIDTH + 24)/2
 
         if left < x < left + length and top < y < top + height:
@@ -744,7 +747,7 @@ def isPointingAtFinishButton(x: int, y: int) -> bool:
 def isPointingAtExchangeButton(x: int, y: int) -> bool:
         length = (0.2*WIDTH + 24)/2
         height = 0.1 * HEIGHT
-        top = 0.5*HEIGHT - height
+        top = 0.5*HEIGHT - height/2
         left = (0.5*WIDTH + 0.35*HEIGHT) + (0.5*WIDTH - 0.35*HEIGHT)/2 - 0.1*WIDTH
 
         if left < x < left + length and top < y < top + height:
@@ -849,6 +852,9 @@ def highlightTileFrameRack(xRack: int, yRack: int, index: Literal[0, 1, 2, 3, 4,
         rect: pygame.Rect = pygame.Rect(xStart, yStart, tileSide, rackHeight)
         pygame.draw.rect(screen, color, rect, width=3)
 
+def isGameFinished(letterBag) -> bool:
+        ...
+
 # Main game
 def launchGame() -> None:
         pygame.display.set_caption("Atomic Scrabble")
@@ -881,14 +887,9 @@ def launchGame() -> None:
         isHighlighted: bool = False
         isExchangingTiles: bool = False
         highlightedTileParams: dict = {}
-        letterPlacing: str
-        tilesExchanging: list = []
+        letterPlacing: str = " "
+        tileExchanging: str = " "
         turn: Turn = Turn()
-
-        title = bigText.render("Atomic Scrabble", True, WHITE)
-        titleRect = title.get_rect()
-        titleRect.center = (WIDTH / 2, 0.05 * HEIGHT)
-        screen.blit(title, titleRect)
 
         while running:
 
@@ -941,6 +942,7 @@ def launchGame() -> None:
                                                 playerCurrent.adjustScore(playerCurrent.getTemporaryScore())
                                                 temporaryScore = 0
                                                 playerCurrent.setTemporaryScore(temporaryScore)
+                                                playerCurrent.takeLetters(letterBag)
                                                 playerCurrent = playerQueue.rotate()
                                                 turn.refresh()
                                 # Exchanging tiles button press handling
@@ -950,45 +952,51 @@ def launchGame() -> None:
                                                 playerCurrent.takeLetters(letterBag)
                                                 playerCurrent = playerQueue.rotate()
                                                 isExchangingTiles = False
-                                                time.sleep(30 / 60)
+                                                tileExchanging = ' '
+                                                time.sleep(10 / 60)
                                                 continue
                                         # First press
                                         if len(turn.getTurn()) == 0:
                                                 isExchangingTiles = True
-                                if isExchangingTiles:
-                                        for tile in tilesExchanging:
-                                                playerCurrent.removeLetter(tile)
-                                                letterBag.returnLetter(tile)
-                                                tilesExchanging.remove(tile)
 
                                 # select a letter at the current player's rack
                                 rackIndex: int = rackPointingAt(x, y)
                                 if rackIndex != 0 and playerCurrent.getId() == rackIndex:
-                                        rackIndex -= 1
-                                        i: int = rackIndex % 2
-                                        j: int = rackIndex // 2
+                                        i: int = (rackIndex - 1) % 2
+                                        j: int = (rackIndex - 1) // 2
                                         xRack, yRack = rackPosition(i, j)
                                         tileIndex: int = tilePointingAtRack(x, xRack)
-                                        numberOfLettersAvailable: int = len(playerCurrent.getLetters())
+                                        print(tileIndex)
+                                        numberOfLettersAvailable: int = playerCurrent.getNumberOfTiles()
                                         if tileIndex <= numberOfLettersAvailable - 1:
+                                                isTheSameLetter = (letterPlacing == playerCurrent.getLetters()[tileIndex])
                                                 letterPlacing = playerCurrent.getLetters()[tileIndex]
                                                 if isExchangingTiles:
-                                                        tilesExchanging.append(letterPlacing)
-                                                        time.sleep(5 / 60)
+                                                        tileExchanging = letterPlacing
                                                 else:
                                                         playerCurrent.switchLetterPlacement()
-                                                        isHighlighted = True
+                                                        if isTheSameLetter:
+                                                                isHighlighted = not isHighlighted
+                                                        else:
+                                                                isHighlighted = True
                                                         highlightedTileParams["xRack"] = xRack
                                                         highlightedTileParams["yRack"] = yRack
                                                         highlightedTileParams["index"] = tileIndex
                                                         highlightedTileParams["color"] = (255, 0, 0)
                                                         highlightedTileParams["player"] = playerCurrent
+                if isExchangingTiles:
+                        isHighlighted = False
+                        if tileExchanging != " ":
+                                playerCurrent.removeLetter(tileExchanging)
+                                letterBag.returnLetter(tileExchanging)
+                                tileExchanging = " "
+
                 # Draws board and player racks
                 drawBoard(board)
                 drawRacks(playerQueue)
                 # Draws finish button
                 drawFinishTurnButton()
-                drawExchangeTilesButton()
+                drawExchangeTilesButton(isExchangingTiles)
 
                 if isHighlighted and letterPlacing:
                         highlightTileFrameRack(highlightedTileParams["xRack"], 
@@ -998,14 +1006,18 @@ def launchGame() -> None:
                                                highlightedTileParams["player"])
                 
                 # Displaying some useful info
-                """
+                
                 x, y = pygame.mouse.get_pos()
-                if rackPointingAt(x, y):
-                        info = bigText.render(f"{rackPointingAt(x, y)}", True, WHITE)
-                        infoRect = info.get_rect()
-                        infoRect.center = (WIDTH / 2, HEIGHT / 2)
-                        screen.blit(info, infoRect)
-                """
+                if True:
+                        info1 = bigText.render(f"Tiles left in the bag: {letterBag.numberOfLettersRemaining()}", True, WHITE)
+                        infoRect = info1.get_rect()
+                        infoRect.center = (WIDTH/2, 0.95*HEIGHT)
+                        screen.blit(info1, infoRect)
+
+                title = bigText.render("Atomic Scrabble", True, WHITE)
+                titleRect = title.get_rect()
+                titleRect.center = (WIDTH/2, 0.05*HEIGHT)
+                screen.blit(title, titleRect)
 
                 pygame.display.flip()
                 
@@ -1023,5 +1035,4 @@ if __name__ == "__main__":
         mediumText: pygame.font.Font = pygame.font.Font("helvetica-neue-5/HelveticaNeueLight.otf", 35)
         smallText: pygame.font.Font = pygame.font.Font("helvetica-neue-5/HelveticaNeueLight.otf", 20)
 
-        #import sys; sys.exit()
         launchGame()
