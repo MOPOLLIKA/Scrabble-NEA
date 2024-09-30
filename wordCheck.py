@@ -60,6 +60,9 @@ def isWord(word: str) -> bool:
         else:
                 return False
         
+def isPartialWord(part: str) -> bool:
+        ...
+        
 def getDefinition(word: str) -> str:
         with open("MyDictionary.json", "r") as f:
                 words = json.load(f)
@@ -80,6 +83,10 @@ def createMyDictionary() -> None:
 
 if __name__ == "__main__":
         print(getDefinition("eerie"))
+        with open("MyDictionary.json", "r") as f:
+                words = json.load(f)
+                print(list(words.keys()))
+                f.close()
 
 
         
