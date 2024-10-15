@@ -1,0 +1,4 @@
+from Scrabble import LetterBag
+
+for i in range(10):
+        letter: str = 
