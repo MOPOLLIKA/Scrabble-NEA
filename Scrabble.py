@@ -7,7 +7,7 @@ import wordCheckAPI as wc
 from typing import Iterable, Literal
 from numpy import transpose
 #from wordCheck import isWord
-from dawg import Trie
+from dawg import Trie, listToStr
 
 WHITE: tuple = (255, 255, 255)
 BLACK: tuple = (0, 0, 0)
@@ -34,7 +34,7 @@ with open("MyDictionary.json", "r") as f:
 trie = Trie()
 trie.assemble(words)
 def isWord(word: str) -> bool:
-    return trie.bashSearch(word.capitalize())
+    return trie.bashSearch(word)
 
 class Highlighters:
     BRIGHTBLUE: str = "\033[94m"
@@ -86,12 +86,6 @@ def wordMultiplicator(tileType: str) -> int:
             return 2
         case _:
             return 1
-
-def listToStr(lst: list) -> str:
-    result: str = ""
-    for letter in lst:
-        result += letter
-    return result
 
 def lettersTransform(dct: dict) -> list:
     result: list = []
@@ -234,6 +228,17 @@ class Board:
                 return False
             
         return True
+    
+    def fitWord(self, word: str):
+        for row in range(15):
+            for col in range(15):
+                boardLetter = self.board[row][col]
+                if boardLetter not in word:
+                    continue
+                letterIndices = [index for index in range(len(word)) if word[index] == boardLetter]
+                for letterIndex in letterIndices:
+                    ...
+
 
     
     def getBoardElements(self) -> list[list[str]]:
@@ -535,23 +540,15 @@ class Bot(Player):
     def __init__(self):
         super().__init__()
         self.bot = True
+        self.difficulty = 6
 
     def makeTurn(self, board: Board) -> Turn:
         """Heuristic method which finds the best turn a player can make, given his 
         letters and a board configuraiton"""
-        possibleWords = self._findPossibleWords()
-        for word in possibleWords:
-            turn = self._fitWordOnBoard(word)
-        return turn
-        
+        optimalWords = trie.generateOptimalWord(letters=self.getLetters(), difficulty=self.difficulty)
+        for optimalWord in optimalWords:
+            turn = board.fitWord(optimalWord)
 
-    def _findPossibleWords(self) -> list[str]:
-        """This method finds all the possible words that can be assembled from the rack letters.
-        These words are arranged in the descending score order."""
-        ...
-
-    def _fitWordOnBoard(self, word: str) -> Turn:
-        ...
 
 
 def drawBoard(board: Board) -> None:
