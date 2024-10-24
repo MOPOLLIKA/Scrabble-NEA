@@ -8,6 +8,7 @@ from typing import Iterable, Literal
 from numpy import transpose
 #from wordCheck import isWord
 from dawg import Trie, listToStr
+from copy import deepcopy
 
 WHITE: tuple = (255, 255, 255)
 BLACK: tuple = (0, 0, 0)
@@ -199,54 +200,103 @@ class Board:
         return wordsFound
     
     def isValid(self) -> bool:
-        for row in range(15):
-            for col in range(15):
-                letter: str = self.board[row][col]
-                if letter == " ":
-                    continue
-                
-                # searching for a word horizontally
-                left: list = scanLeft(col, row, self.board)
-                right: list = scanRight(col, row, self.board)
-                horizontalWord: str = listToStr(left) + letter + listToStr(right)
-                if len(horizontalWord) != 1 and not isWord(horizontalWord):
-                    return False
-                
-                # searching for a word vertically
-                up: list = scanUp(col, row, self.board)
-                down: list = scanDown(col, row, self.board)
-                verticalWord: str = listToStr(up) + letter + listToStr(down)
-                if len(verticalWord) != 1 and not isWord(verticalWord):
-                    return False
-                
-                # check if it is a single standalone letter, pertaining to no word on the board
-                if len(horizontalWord) == 1 and len(verticalWord) == 1:
-                    return False
+        # Checks whether the board is valid in terms of validity of words
+        valid = isBoardValid(self.board)
         # checks whether a letter is placed on the starting tile at the start of the game
         if self.isFirstTurn:
             if self.board[7][7] == " ":
                 return False
-            
-        return True
+        return valid
     
-    def fitWord(self, word: str):
+    def fitWord(self, word: str) -> list[tuple]:
+        """Searches the board for where to put the word inputted. It returns a list of triples (col, row, letter)
+        identifying where to put letters.
+        If there is nowhere to place the word, it returns an empty list."""
         for row in range(15):
             for col in range(15):
                 boardLetter = self.board[row][col]
                 if boardLetter not in word:
                     continue
+
+                # Searching for a word horizontally
+                left: list = scanLeft(col, row, self.board)
+                right: list = scanRight(col, row, self.board)
+                horizontalWord: str = listToStr(left) + boardLetter + listToStr(right)
+
+                # Searching for a word vertically
+                up: list = scanUp(col, row, self.board)
+                down: list = scanDown(col, row, self.board)
+                verticalWord: str = listToStr(up) + boardLetter + listToStr(down)
+
+                # Determining the X and Y steps
+                horizontal = isWord(horizontalWord)
+                vertical = isWord(verticalWord)
+                stepX = 0
+                stepY = 0
+                # If the horizontal is used, go vertically
+                if horizontal and not vertical:
+                    stepY = 1
+                # If the vertical is used, go horizontally
+                elif not horizontal and vertical:
+                    stepX = 1
+                # If the letter is the intersection of a vertical and a horizontal words, then skip
+                elif horizontal and vertical:
+                    continue
+
                 letterIndices = [index for index in range(len(word)) if word[index] == boardLetter]
                 for letterIndex in letterIndices:
-                    ...
+                    boardCopy = deepcopy(self.board)
+                    moves = []
+                    
+                    # set up the starting column and row to place the proposed word
+                    currentCol = col - letterIndex * stepX
+                    currentRow = row - letterIndex * stepY
 
+                    for letter in word:
+                        if letter == boardLetter:
+                            continue
+                        boardCopy[currentRow][currentCol] = letter
+                        moves.append((currentCol, currentRow, letter))
+                        currentCol += stepX
+                        currentRow += stepY
 
-    
+                    if isBoardValid(boardCopy):
+                        return moves
+        return []
+
     def getBoardElements(self) -> list[list[str]]:
         return self.board
     
     def getBoardTypes(self) -> list[list[str]]:
         return self.boardTypes
     
+def isBoardValid(board: list[list[str]]) -> bool:
+    for row in range(15):
+        for col in range(15):
+            letter: str = board[row][col]
+            if letter == " ":
+                continue
+            
+            # searching for a word horizontally
+            left: list = scanLeft(col, row, board)
+            right: list = scanRight(col, row, board)
+            horizontalWord: str = listToStr(left) + letter + listToStr(right)
+            if len(horizontalWord) != 1 and not isWord(horizontalWord):
+                return False
+            
+            # searching for a word vertically
+            up: list = scanUp(col, row, board)
+            down: list = scanDown(col, row, board)
+            verticalWord: str = listToStr(up) + letter + listToStr(down)
+            if len(verticalWord) != 1 and not isWord(verticalWord):
+                return False
+            
+            # check if it is a single standalone letter, pertaining to no word on the board
+            if len(horizontalWord) == 1 and len(verticalWord) == 1:
+                return False
+    return True
+
+
 def scanLeft(col: int, row: int, board: list[list[str]]) -> list:
     result: list = []
     step: int = -1
@@ -307,6 +357,12 @@ class Player:
     def __repr__(self) -> str:
         return f"Player {self.id}, Name: {self.name}, Score: {self.score}, Letters: {self.letters}, isActive: {self.active}\n"
     
+    def __eq__(self, obj) -> bool:
+        if self.id == obj.id:
+            return True
+        else:
+            return False
+    
     def takeLetters(self, letterBag: LetterBag) -> None | bool:
         for _ in range(7 - len(self.letters)):
             letter = letterBag.getLetter()
@@ -329,6 +385,10 @@ class Player:
             return
         self.letters.remove(letter)
         board.placeLetter(col, row, letter)
+    
+    def applyMoves(self, board: Board, moves: list[tuple]) -> None:
+        for col, row, letter in moves:
+            self.placeLetter(letter, col, row, board)
         
     def adjustScore(self, adjustment: int) -> None:
         self.score += adjustment
@@ -342,8 +402,14 @@ class Player:
     def switchLetterPlacement(self) -> None:
         self.placingLetter = not self.placingLetter
 
+    def switchBot(self) -> None:
+        self.bot = not self.bot
+
     def isActive(self) -> bool:
         return self.active
+    
+    def isBot(self) -> bool:
+        return self.bot
     
     def isPlacingLetter(self) -> bool:
         return self.placingLetter
@@ -415,6 +481,10 @@ class PlayerQueue:
 class Turn:
     def __init__(self):
         self.turn: list[tuple] = [] # [(col1, row1), (col2, row2), ..., (coln, rown)]
+
+    def initialiseFromMoves(self, moves: list[tuple]):
+        for col, row, _ in moves:
+            self.turn.append((col, row))
 
     def add(self, coords: tuple["col": int, "row": int]) -> None:
         self.turn.append(coords)
@@ -540,16 +610,31 @@ class Bot(Player):
     def __init__(self):
         super().__init__()
         self.bot = True
-        self.difficulty = 6
+        self.difficulty = 0
+        self.name = f"Bot {self.id}"
 
-    def makeTurn(self, board: Board) -> Turn:
+    def makeTurn(self, board: Board) -> int:
         """Heuristic method which finds the best turn a player can make, given his 
-        letters and a board configuraiton"""
+        letters and a board configuraiton.
+        It applies the turn to the board, calculates the score and adds the score to the bot player.
+        Returns True if an optimal turn was found, otherwise returns False and the turn is skipped."""
         optimalWords = trie.generateOptimalWord(letters=self.getLetters(), difficulty=self.difficulty)
+        t = time.time()
         for optimalWord in optimalWords:
-            turn = board.fitWord(optimalWord)
-
-
+            # No wait more than 15 seconds
+            if time.time() - t >= 15:
+                return False
+            moves = board.fitWord(optimalWord)
+            # If not possible to place a word, continue to the next possible word
+            if moves == []:
+                continue
+            self.applyMoves(board, moves)
+            turn = Turn()
+            turn.initialiseFromMoves(moves)
+            score = turn.calculateScore(board)
+            self.adjustScore(score)
+            return True
+        return False
 
 def drawBoard(board: Board) -> None:
     sideLength: float = 0.7 * HEIGHT
@@ -886,8 +971,24 @@ def highlightTileFrameRack(xRack: int, yRack: int, index: Literal[0, 1, 2, 3, 4,
     rect: pygame.Rect = pygame.Rect(xStart, yStart, tileSide, rackHeight)
     pygame.draw.rect(screen, color, rect, width=3)
 
-def isGameFinished(letterBag) -> bool:
-    ...
+def isGameFinished(letterBag: LetterBag, numberOfMovesSkipped: int) -> bool:
+    if letterBag.isEmpty() and numberOfMovesSkipped >= 1:
+        return True
+    if numberOfMovesSkipped >= 4:
+        return True
+    return False
+
+def adjustFinalScores(player: Player, players: list[Player]) -> None:
+    """This procedure is activated if the last player placed all their letters and there are no more tiles
+    in the letterBag. In this case the last player is added all the combined letter scores of the other players,
+    while all the other players are subtracted the scores of the letters on their racks."""
+    otherPlayers = [otherPlayer for otherPlayer in players if otherPlayer != player]
+    scoreSum = 0
+    for otherPlayer in otherPlayers:
+        score = sum(map(lambda x: LETTERS_SCORES[x], otherPlayer.getLetters()))
+        scoreSum += score
+        otherPlayer.adjustScore(-score)
+    player.adjustScore(scoreSum)
 
 # Main game
 def launchGame() -> None:
@@ -899,20 +1000,25 @@ def launchGame() -> None:
     
     # Initialize main objects
     letterBag: LetterBag = LetterBag()
-
+    """
     player1: Player = Player()
     player2: Player = Player()
     player3: Player = Player()
     player4: Player = Player()
-
-    players: list[Player] = [player1, player2, player3, player4]
+    """
+    players: list[Player] = []
+    numberOfPlayers: int = 4
+    numberOfBots: int = 2
+    for _ in range(numberOfPlayers - numberOfBots):
+        players.append(Player())
+    for _ in range(numberOfBots):
+        players.append(Bot())
     for player in players:
         player.takeLetters(letterBag)
     playerQueue: PlayerQueue = PlayerQueue(players)
-    numberOfPlayers: int = playerQueue.getLength()
-    playerCurrent: Player = player1
-    player4.switchActive()
-    numberOfRotations: int = random.randint(numberOfPlayers, numberOfPlayers + numberOfPlayers)
+    playerCurrent: Player | Bot = players[0]
+    players[-1].switchActive()
+    numberOfRotations: int = 1  # random.randint(numberOfPlayers, numberOfPlayers + numberOfPlayers - numberOfBots)
     for _ in range(numberOfRotations):
         playerCurrent = playerQueue.rotate()
 
@@ -923,11 +1029,30 @@ def launchGame() -> None:
     highlightedTileParams: dict = {}
     letterPlacing: str = " "
     tileExchanging: str = " "
+    numberOfMovesSkipped: int = 0
     turn: Turn = Turn()
 
     while running:
-
         screen.fill(GREENPOOL)
+
+        if playerCurrent.isBot():
+            successful = playerCurrent.makeTurn(board)
+            playerCurrent.takeLetters(letterBag)
+            playerCurrent = playerQueue.rotate()
+            isExchangingTiles = False
+            tileExchanging = ' '
+
+        if isGameFinished(letterBag, numberOfMovesSkipped):
+            for player in players:
+                if len(player.getLetters()) == 0 and letterBag.isEmpty():
+                    adjustFinalScores(player, players)
+                    winner = max(players, key=lambda x: x.getScore())
+                    print(winner + "is a winner!")
+                    running = False
+            if numberOfMovesSkipped >= 4:
+                print(f"The game was stopped! Players' scores: \n{[player for player in players]}")
+                running = False
+            
         for event in pygame.event.get():
             # Quit game if top left "x" pressed
             if event.type == pygame.QUIT:
@@ -955,6 +1080,8 @@ def launchGame() -> None:
 
                 # place letter tiles at the cursor position if a letter is selected
                 if isPointingAtBoard(x, y) and playerCurrent.isPlacingLetter():
+                    if board.getBoardElements()[row][col] != " ":
+                        continue
                     playerCurrent.placeLetter(letterPlacing, col, row, board)
                     turn.add((col, row))
                     letterPlacing = ""
@@ -983,15 +1110,21 @@ def launchGame() -> None:
                 if isPointingAtExchangeButton(x, y):
                     # Second press
                     if isExchangingTiles:
+                        #TODO
+                        if len(playerCurrent.getLetters()) == startingNumberOfLetters:
+                            numberOfMovesSkipped += 1
+                        else:
+                            numberOfMovesSkipped = 0
                         playerCurrent.takeLetters(letterBag)
                         playerCurrent = playerQueue.rotate()
                         isExchangingTiles = False
                         tileExchanging = ' '
-                        time.sleep(10 / 60)
+                        time.sleep(20 / 60)
                         continue
                     # First press
                     if len(turn.getTurn()) == 0:
                         isExchangingTiles = True
+                        startingNumberOfLetters = len(playerCurrent.getLetters())
 
                 # select a letter at the current player's rack
                 rackIndex: int = rackPointingAt(x, y)
@@ -1000,7 +1133,6 @@ def launchGame() -> None:
                     j: int = (rackIndex - 1) // 2
                     xRack, yRack = rackPosition(i, j)
                     tileIndex: int = tilePointingAtRack(x, xRack)
-                    print(tileIndex)
                     numberOfLettersAvailable: int = playerCurrent.getNumberOfTiles()
                     if tileIndex <= numberOfLettersAvailable - 1:
                         isTheSameLetter = (letterPlacing == playerCurrent.getLetters()[tileIndex])

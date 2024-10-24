@@ -82,11 +82,7 @@ def createMyDictionary() -> None:
                 json.dump(words, f)
 
 if __name__ == "__main__":
-        print(getDefinition("eerie"))
-        with open("MyDictionary.json", "r") as f:
-                words = json.load(f)
-                print(list(words.keys()))
-                f.close()
+        print(getDefinition("zoo"))
 
 
         
