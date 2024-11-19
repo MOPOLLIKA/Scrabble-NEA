@@ -23,8 +23,10 @@ BROWNLIGHT: tuple = (196, 164, 132)
 WIDTH = 1470
 HEIGHT = 829
 
-LETTERS_SCORES: dict = {"A": 1, "B": 3, "C": 3, "D": 2, "E": 1, "F": 4, "G": 2, "H": 4, "I": 1, "J": 8, "K": 5, "L": 1, "M": 3, "N": 1, 
-            "O": 1, "P": 3,"Q": 10, "R": 1, "S": 1, "T": 1, "U": 1, "V": 4, "W": 4, "X": 8, "Y": 4, "Z": 10, "BLANK": 0}
+LETTERS_SCORES: dict = {"A": 1, "B": 3, "C": 3, "D": 2, "E": 1, "F": 4, "G": 2, 
+                        "H": 4, "I": 1, "J": 8, "K": 5, "L": 1, "M": 3, "N": 1, 
+                        "O": 1, "P": 3, "Q": 10,"R": 1, "S": 1, "T": 1, "U": 1, 
+                        "V": 4, "W": 4, "X": 8, "Y": 4, "Z": 10, "BLANK": 0}
 
 trie = Trie()
 
@@ -441,7 +443,7 @@ class Simulation:
 
     def startGame(self) -> None:
         print()
-        print(highlight("You are playing bumble Scrabble!", Highlighters.BOLD))
+        print(highlight("You are playing Atomic Scrabble!", Highlighters.BOLD))
         print()
         self.numberOfPlayers = int(input("Please, select 2, 3 or 4 players: "))
         self.players = [Player() for _ in range(self.numberOfPlayers)]
@@ -1050,7 +1052,7 @@ def launchGame() -> None:
                     print(winner + "is a winner!")
                     running = False
             if numberOfMovesSkipped >= 4:
-                print(f"The game was stopped! Players' scores: \n{[player for player in players]}")
+                print(f"The game is finished! Players' scores: \n{[player for player in players]}")
                 running = False
             
         for event in pygame.event.get():
@@ -1110,7 +1112,6 @@ def launchGame() -> None:
                 if isPointingAtExchangeButton(x, y):
                     # Second press
                     if isExchangingTiles:
-                        #TODO
                         if len(playerCurrent.getLetters()) == startingNumberOfLetters:
                             numberOfMovesSkipped += 1
                         else:
