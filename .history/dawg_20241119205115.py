@@ -114,17 +114,7 @@ class Trie:
         # Going through each word in the alphabet
         for word in vocabulary.keys():
             lettersUsed = ""
-            firstLetter = word[0]
-            rightEdges = lastNode.getRightEdges()
-            rightEdgesAvailable = [edge for edge in rightEdges if edge == firstLetter]
-            if rightEdgesAvailable != []:
-                edge = rightEdgesAvailable[0]
-                lastNode= edge.getRightNode()
-                wordRemainder = word[1::]
-            else:
-                wordRemainder = word
-
-            for letter in wordRemainder:
+            for letter in word:
                 lettersUsed += letter
                 isTerminal = (lettersUsed == word)
 
@@ -170,23 +160,13 @@ class Trie:
 
     def bashSearch(self, word: str) -> bool:
         word = word.capitalize()
-        if len(word) <= 1:
-            return False
-        firstLetter = word[0]
         node = self.rootNode
-        rightEdges1 = node.getRightEdges()
-        rightEdgesAvailable1 = [edge for edge in rightEdges1 if edge == firstLetter]
-        if rightEdgesAvailable1 == []:
-            return False
-        firstRightEdge = rightEdgesAvailable1[0]
-        node = firstRightEdge.getRightNode()
-        secondLetter = word[1]
-        rightEdges2 = node.getRightEdges()
-        rightEdgesAvailable2 = [edge for edge in rightEdges2 if edge == secondLetter]
-        for edge in rightEdgesAvailable2:
+        rightEdges = node.getRightEdges()
+        rightEdgesAvailable = list(filter(lambda x: x == word[0], rightEdges))
+        for edge in rightEdgesAvailable:
             node = edge.getRightNode()
             wordTail = self._goRight(node, "")
-            if word[0:2] + wordTail == word:
+            if word[0] + wordTail == word:
                 return True
         return False
 
