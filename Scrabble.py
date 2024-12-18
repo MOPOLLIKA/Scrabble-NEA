@@ -3,9 +3,10 @@ import os
 import random
 import time
 import json
-import wordCheckAPI as wc
 from typing import Iterable, Literal
 from numpy import transpose
+from pprint import pprint
+import sys
 #from wordCheck import isWord
 from dawg import Trie, listToStr
 from copy import deepcopy
@@ -99,63 +100,66 @@ def lettersTransform(dct: dict) -> list:
 
 class LetterBag:
     def __init__(self) -> None:
-        self.bag = {"A": 9, "B": 2, "C": 2, "D": 4, "E": 12, "F": 2, "G": 3, "H": 2, "I": 9, "J": 1, "K": 1, "L": 4, "M": 2, "N": 6,
-                "O": 8, "P": 2,"Q": 1, "R": 6, "S": 4, "T": 6, "U": 4, "V": 2, "W": 2, "X": 1, "Y": 2, "Z": 4, "BLANK": 2}
-
+        self.__bag = {"A": 9, "B": 2, "C": 2, "D": 4, "E": 12, "F": 2, "G": 3, 
+                      "H": 2, "I": 9, "J": 1, "K": 1, "L": 4, "M": 2, "N": 6, 
+                      "O": 8, "P": 2, "Q": 1, "R": 6, "S": 4, "T": 6, "U": 4, 
+                      "V": 2, "W": 2, "X": 1, "Y": 2, "Z": 4, "BLANK": 2}
+    
     def __repr__(self) -> str:
-        return f"Letters left: {self.bag}"
+        return f"Letters left: {self.__bag}"
     
     def refresh(self) -> None:
-        self.bag = {"A": 9, "B": 2, "C": 2, "D": 4, "E": 12, "F": 2, "G": 3, "H": 2, "I": 9, "J": 1, "K": 1, "L": 4, "M": 2,"N": 6, 
-                "O": 8, "P": 2,"Q": 1, "R": 6, "S": 4, "T": 6, "U": 4, "V": 2, "W": 2, "X": 1, "Y": 2, "Z": 4, "BLANK": 2}
+        self.__bag = {"A": 9, "B": 2, "C": 2, "D": 4, "E": 12, "F": 2, "G": 3, 
+                      "H": 2, "I": 9, "J": 1, "K": 1, "L": 4, "M": 2, "N": 6, 
+                      "O": 8, "P": 2, "Q": 1, "R": 6, "S": 4, "T": 6, "U": 4, 
+                      "V": 2, "W": 2, "X": 1, "Y": 2, "Z": 4, "BLANK": 2}
     
     def isEmpty(self) -> bool:
-        for value in self.bag.values():
+        for value in self.__bag.values():
             if value != 0:
                 return False
         return True
     
     def numberOfLettersRemaining(self) -> int:
-        return sum(self.bag.values())
+        return sum(self.__bag.values())
     
     def getLetter(self) -> str:
         if not self.isEmpty():
-            lettersTransformed: list = lettersTransform(self.bag)
+            lettersTransformed: list = lettersTransform(self.__bag)
             index = random.randint(0, len(lettersTransformed) - 1)
             letter: str = lettersTransformed.pop(index)
-            self.bag[letter] -= 1
+            self.__bag[letter] -= 1
             return letter
         else:
             return "No letters left in the letter bag"
         
     def returnLetter(self, letter: str) -> None:
-        self.bag[letter] += 1
+        self.__bag[letter] += 1
 
 # LR - letter, DL - double letter, TL - triple letter,  DW - double word, TW - triple word, ST - start point
 class Board:
     def __init__(self) -> None:
-        self.board: list[list[str]] = [[" " for _ in range(15)] for _ in range(15)]
-        self.boardTypes: list[list[str]] = [["LR" for _ in range(15)] for _ in range(15)]
-        self.bag: LetterBag = LetterBag()
-        self.isFirstTurn: bool = True
+        self.__board: list[list[str]] = [[" " for _ in range(15)] for _ in range(15)]
+        self.__boardTypes: list[list[str]] = [["LR" for _ in range(15)] for _ in range(15)]
+        self.__isFirstTurn: bool = True
         # initialise tile types
         for row in range(15):
             for col in range(15):
                 if (col in {0, 7, 14} and row in {0, 7, 14}) and not (col == 7 and row == 7):
-                    self.boardTypes[row][col] = "TW"
+                    self.__boardTypes[row][col] = "TW"
                 elif (col in {3, 11} and row in {0, 7, 14}) or (col in {0, 7, 14} and row in {3, 11}) or\
                 (col in {6, 8} and row in {2, 6, 8, 12}) or (col in {2, 12} and row in {6, 8}):
-                    self.boardTypes[row][col] = "DL"
+                    self.__boardTypes[row][col] = "DL"
                 elif (col in {1, 13} and row in {1, 13}) or (col in {2, 12} and row in {2, 12}) or\
                 (col in {3, 11} and row in {3, 11}) or (col in {4, 10} and row in {4, 10}):
-                    self.boardTypes[row][col] = "DW"
+                    self.__boardTypes[row][col] = "DW"
                 elif (col in {5, 9} and row in {1, 5, 9, 14}) or (col in {1, 13} and row in {5, 9}):
-                    self.boardTypes[row][col] = "TL"
-        self.boardTypes[7][7] = "ST"
+                    self.__boardTypes[row][col] = "TL"
+        self.__boardTypes[7][7] = "ST"
     
     
     def __repr__(self) -> str | None:
-        for rowElements in self.board:
+        for rowElements in self.__board:
             print("|", end="")
             print("-" * 59, end="")
             print("|")
@@ -170,7 +174,7 @@ class Board:
         return ""
     
     def printTypes(self) -> None:
-        for rowElements in self.boardTypes:
+        for rowElements in self.__boardTypes:
             print("|", end="")
             print("-" * 74, end="")
             print("|")
@@ -185,28 +189,28 @@ class Board:
         print()
     
     def placeLetter(self, col: int, row: int, letter: str) -> None:
-        if self.board[row][col] != " ":
+        if self.__board[row][col] != " ":
             return 
-        self.board[row][col] = letter
+        self.__board[row][col] = letter
 
     def removeLetter(self, col: int, row: int) -> None:
-        self.board[row][col] = " "
+        self.__board[row][col] = " "
         
     def searchForWords(self) -> list:
         wordsFound: list = []
-        for rowElements in self.board: 
+        for rowElements in self.__board: 
             wordsFound += findWordsInRow(rowElements)[0]
-        for colElements in transpose(self.board):
+        for colElements in transpose(self.__board):
             colElements = list(colElements)
             wordsFound += findWordsInRow(colElements)[0]
         return wordsFound
     
     def isValid(self) -> bool:
         # Checks whether the board is valid in terms of validity of words
-        valid = isBoardValid(self.board)
+        valid = isBoardValid(self.__board)
         # checks whether a letter is placed on the starting tile at the start of the game
-        if self.isFirstTurn:
-            if self.board[7][7] == " ":
+        if self.__isFirstTurn:
+            if self.__board[7][7] == " ":
                 return False
         return valid
     
@@ -216,18 +220,18 @@ class Board:
         If there is nowhere to place the word, it returns an empty list."""
         for row in range(15):
             for col in range(15):
-                boardLetter = self.board[row][col]
+                boardLetter = self.__board[row][col]
                 if boardLetter not in word:
                     continue
 
                 # Searching for a word horizontally
-                left: list = scanLeft(col, row, self.board)
-                right: list = scanRight(col, row, self.board)
+                left: list = scanLeft(col, row, self.__board)
+                right: list = scanRight(col, row, self.__board)
                 horizontalWord: str = listToStr(left) + boardLetter + listToStr(right)
 
                 # Searching for a word vertically
-                up: list = scanUp(col, row, self.board)
-                down: list = scanDown(col, row, self.board)
+                up: list = scanUp(col, row, self.__board)
+                down: list = scanDown(col, row, self.__board)
                 verticalWord: str = listToStr(up) + boardLetter + listToStr(down)
 
                 # Determining the X and Y steps
@@ -235,6 +239,11 @@ class Board:
                 vertical = isWord(verticalWord)
                 stepX = 0
                 stepY = 0
+                if col == 4 and row == 7:
+                    print(horizontal)
+                    print(vertical)
+                    print(horizontalWord)
+                    print(verticalWord)
                 # If the horizontal is used, go vertically
                 if horizontal and not vertical:
                     stepY = 1
@@ -243,11 +252,16 @@ class Board:
                     stepX = 1
                 # If the letter is the intersection of a vertical and a horizontal words, then skip
                 elif horizontal and vertical:
-                    continue
-
+                    if horizontalWord in word:
+                        stepX = 1
+                    elif verticalWord in word:
+                        stepY = 1
+                    else:
+                        continue
+                
                 letterIndices = [index for index in range(len(word)) if word[index] == boardLetter]
                 for letterIndex in letterIndices:
-                    boardCopy = deepcopy(self.board)
+                    boardCopy = deepcopy(self.__board)
                     moves = []
                     
                     # set up the starting column and row to place the proposed word
@@ -255,22 +269,25 @@ class Board:
                     currentRow = row - letterIndex * stepY
 
                     for letter in word:
-                        if letter == boardLetter:
+                        if not (0 <= currentCol <= 14 and 0 <= currentRow <= 14):
+                            break
+                        if self.__board[currentRow][currentCol] != " ":
+                            currentCol += stepX
+                            currentRow += stepY
                             continue
                         boardCopy[currentRow][currentCol] = letter
                         moves.append((currentCol, currentRow, letter))
                         currentCol += stepX
                         currentRow += stepY
-
-                    if isBoardValid(boardCopy):
+                    if isBoardValid(boardCopy) and moves != []:
                         return moves
         return []
 
     def getBoardElements(self) -> list[list[str]]:
-        return self.board
+        return self.__board
     
     def getBoardTypes(self) -> list[list[str]]:
-        return self.boardTypes
+        return self.__boardTypes
     
 def isBoardValid(board: list[list[str]]) -> bool:
     for row in range(15):
@@ -340,99 +357,99 @@ def findWordsInRow(rowElements) -> tuple[list, bool]:
     isCorrect: bool = True if False not in map(lambda x: isWord(x), words) else False
     words = [word for word in words if isWord(word)]
     return words, isCorrect
-                    
+
 
 class Player:
     ID = 1
 
     def __init__(self) -> None:
-        self.letters: list[str] = []
-        self.score: int = 0
+        self._letters: list[str] = []
+        self._score: int = 0
+        self._id: int = Player.ID
+        self._name: str = f"Player {self._id}" # implement name selection later in the settings TODO
+        self._active: bool = False
+        self._placingLetter: bool = False
+        self._bot: bool = False
         self._temporaryScore: int = 0
-        self.id: int = Player.ID
-        self.name: str = f"Player {self.id}" # implement name selection later in the settings TODO
-        self.active: bool = False
-        self.placingLetter: bool = False
-        self.bot: bool = False
         Player.ID += 1
 
     def __repr__(self) -> str:
-        return f"Player {self.id}, Name: {self.name}, Score: {self.score}, Letters: {self.letters}, isActive: {self.active}\n"
+        return f"Player {self._id}, Name: {self._name}, Score: {self._score}, Letters: {self._letters}, isActive: {self._active}\n"
     
     def __eq__(self, obj) -> bool:
-        if self.id == obj.id:
+        if self._id == obj.getId():
             return True
         else:
             return False
     
     def takeLetters(self, letterBag: LetterBag) -> None | bool:
-        for _ in range(7 - len(self.letters)):
+        for _ in range(7 - len(self._letters)):
             letter = letterBag.getLetter()
             if letter:
-                self.letters.append(letter)
+                self._letters.append(letter)
             else:
                 return False, "The letter bag is empty!"
     
     def addLetter(self, letter: str) -> None:
-        if len(self.letters) == 7:
+        if len(self._letters) == 7:
             return
-        self.letters.append(letter)
+        self._letters.append(letter)
 
     def removeLetter(self, letter: str) -> None:
         if not letter == " ":
-            self.letters.remove(letter)
+            self._letters.remove(letter)
         
     def placeLetter(self, letter: str, col: int, row: int, board: Board) -> None:
-        if not self.letters:
+        if not self._letters:
             return
-        self.letters.remove(letter)
+        self._letters.remove(letter)
         board.placeLetter(col, row, letter)
     
-    def applyMoves(self, board: Board, moves: list[tuple]) -> None:
+    def _applyMoves(self, board: Board, moves: list[tuple]) -> None:
         for col, row, letter in moves:
             self.placeLetter(letter, col, row, board)
         
     def adjustScore(self, adjustment: int) -> None:
-        self.score += adjustment
+        self._score += adjustment
 
     def setTemporaryScore(self, score: int) -> None:
         self._temporaryScore = score
 
     def switchActive(self) -> None:
-        self.active = not self.active
+        self._active = not self._active
 
     def switchLetterPlacement(self) -> None:
-        self.placingLetter = not self.placingLetter
+        self._placingLetter = not self._placingLetter
 
     def switchBot(self) -> None:
-        self.bot = not self.bot
+        self._bot = not self._bot
 
     def isActive(self) -> bool:
-        return self.active
+        return self._active
     
     def isBot(self) -> bool:
-        return self.bot
+        return self._bot
     
     def isPlacingLetter(self) -> bool:
-        return self.placingLetter
+        return self._placingLetter
     
     def getTemporaryScore(self) -> int:
         return self._temporaryScore
     
     def getNumberOfTiles(self) -> int:
-        return len(self.letters)
+        return len(self._letters)
     
     def getLetters(self) -> list[str]:
-        return self.letters
+        return self._letters
     
     def getId(self) -> int:
-        return self.id
+        return self._id
     
     def getName(self) -> str:
-        return self.name
+        return self._name
     
     def getScore(self) -> int:
-        return self.score
+        return self._score
     
 
 class Simulation:
@@ -457,55 +474,55 @@ class Simulation:
 
 class PlayerQueue:
     def __init__(self, players: Iterable[Player]):
-        self.queue: list[Player] = [player for player in players]
-        self.originalElements: list[Player] = self.queue.copy()
-        self.length: int = len(self.queue)
+        self.__queue: list[Player] = [player for player in players]
+        self.__originalElements: list[Player] = self.__queue.copy()
+        self.__length: int = len(self.__queue)
 
     def __repr__(self) -> str:
-        print(self.queue)
+        print(self.__queue)
         return ""
     
     def rotate(self) -> Player:
-        playerPrevious: Player = self.queue[-1]
+        playerPrevious: Player = self.__queue[-1]
         playerPrevious.switchActive()
-        playerNext: Player = self.queue.pop(0)
+        playerNext: Player = self.__queue.pop(0)
         playerNext.switchActive()
-        self.queue.insert(self.length, playerNext)
+        self.__queue.insert(self.__length, playerNext)
         return playerNext
     
     def getOriginalElements(self) -> list[Player]:
-        return self.originalElements
+        return self.__originalElements
     
     def getLength(self) -> int:
-        return self.length
+        return self.__length
 
 
 class Turn:
     def __init__(self):
-        self.turn: list[tuple] = [] # [(col1, row1), (col2, row2), ..., (coln, rown)]
+        self.__turn: list[tuple] = [] # [(col1, row1), (col2, row2), ..., (coln, rown)]
 
-    def initialiseFromMoves(self, moves: list[tuple]):
+    def initialiseFromMoves(self, moves: list[tuple]) -> None:
         for col, row, _ in moves:
-            self.turn.append((col, row))
+            self.__turn.append((col, row))
 
     def add(self, coords: tuple["col": int, "row": int]) -> None:
-        self.turn.append(coords)
+        self.__turn.append(coords)
 
     def remove(self, coords: tuple["col": int, "row": int]) -> None:
-        self.turn.remove(coords)
+        self.__turn.remove(coords)
 
     def refresh(self) -> None:
-        self.turn = []
+        self.__turn = []
 
     def isValid(self) -> bool:
-        if not self.turn:
+        if not self.__turn:
             return False
-        if len(self.turn) == 1:
+        if len(self.__turn) == 1:
             return True
         
-        cols: list[int] = [col for col, _ in self.turn]
+        cols: list[int] = [col for col, _ in self.__turn]
         uniqueCols: list[int] = set(cols)
-        rows: list[int] = [row for _, row in self.turn]
+        rows: list[int] = [row for _, row in self.__turn]
         uniqueRows: list[int] = set(rows)
         if (len(uniqueCols) == 1 and len(uniqueRows) >= 1) or (len(uniqueCols) >= 1 and len(uniqueRows) == 1):
             return True
@@ -528,7 +545,7 @@ class Turn:
         boardElements = board.getBoardElements()
         boardTypes = board.getBoardTypes()
 
-        for col, row in self.turn:
+        for col, row in self.__turn:
             letter: str = boardElements[row][col]
 
             # searching for a word horizontally
@@ -547,7 +564,7 @@ class Turn:
             wordMult: int = 1
             tileType: str
             for wordLetter in horizontalWord:
-                if (colWord, rowWord) in self.turn:
+                if (colWord, rowWord) in self.__turn:
                     # if the tile is in the turn, then apply all the multiplicators
                     tileType = boardTypes[rowWord][colWord]
                 else:
@@ -565,7 +582,7 @@ class Turn:
             horizontalScore *= wordMult
             score += horizontalScore
 
-        for col, row in self.turn:
+        for col, row in self.__turn:
             letter: str = boardElements[row][col]
 
              # searching for a word vertically
@@ -584,7 +601,7 @@ class Turn:
             wordMult: int = 1
             tileType: str
             for wordLetter in verticalWord:
-                if (colWord, rowWord) in self.turn:
+                if (colWord, rowWord) in self.__turn:
                     # if the tile is in the turn, then apply all the multiplicators
                     tileType = boardTypes[rowWord][colWord]
                 else:
@@ -605,22 +622,22 @@ class Turn:
         return score
     
     def getTurn(self) -> list[tuple]:
-        return self.turn
+        return self.__turn
 
 
 class Bot(Player):
-    def __init__(self):
+    def __init__(self, difficulty: int = 0):
         super().__init__()
-        self.bot = True
-        self.difficulty = 0
-        self.name = f"Bot {self.id}"
+        self._bot = True
+        self._difficulty = difficulty
+        self._name = f"Bot {self._id}"
 
-    def makeTurn(self, board: Board) -> int:
+    def makeTurn(self, board: Board) -> bool:
         """Heuristic method which finds the best turn a player can make, given his 
         letters and a board configuraiton.
         It applies the turn to the board, calculates the score and adds the score to the bot player.
         Returns True if an optimal turn was found, otherwise returns False and the turn is skipped."""
-        optimalWords = trie.generateOptimalWord(letters=self.getLetters(), difficulty=self.difficulty)
+        optimalWords = trie.generateOptimalWord(letters=self.getLetters(), difficulty=self._difficulty)
         t = time.time()
         for optimalWord in optimalWords:
             # No wait more than 15 seconds
@@ -630,7 +647,7 @@ class Bot(Player):
             # If not possible to place a word, continue to the next possible word
             if moves == []:
                 continue
-            self.applyMoves(board, moves)
+            self._applyMoves(board, moves)
             turn = Turn()
             turn.initialiseFromMoves(moves)
             score = turn.calculateScore(board)
@@ -999,22 +1016,31 @@ def launchGame() -> None:
     clock: pygame.time.Clock = pygame.time.Clock()
 
     board: Board = Board()
-    
+    """
+    board.placeLetter(4, 5, "A")
+    board.placeLetter(4, 6, "P")
+    board.placeLetter(4, 7, "R")
+    board.placeLetter(4, 8, "I")
+    board.placeLetter(4, 9, "C")
+    board.placeLetter(4, 10,"O")
+    board.placeLetter(4, 11,"T")
+    board.placeLetter(5, 7, "E")
+    board.placeLetter(6, 7, "A")
+    board.placeLetter(7, 7, "R")
+    print(board.fitWord("REARRANGE"))
+    pprint(board.board)
+    sys.exit()
+    """
     # Initialize main objects
     letterBag: LetterBag = LetterBag()
-    """
-    player1: Player = Player()
-    player2: Player = Player()
-    player3: Player = Player()
-    player4: Player = Player()
-    """
     players: list[Player] = []
     numberOfPlayers: int = 4
     numberOfBots: int = 2
+    botDifficulty: int = 6
     for _ in range(numberOfPlayers - numberOfBots):
         players.append(Player())
     for _ in range(numberOfBots):
-        players.append(Bot())
+        players.append(Bot(difficulty=botDifficulty))
     for player in players:
         player.takeLetters(letterBag)
     playerQueue: PlayerQueue = PlayerQueue(players)

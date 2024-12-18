@@ -1,0 +1,1 @@
+print("REAR" in "REARRANGE")

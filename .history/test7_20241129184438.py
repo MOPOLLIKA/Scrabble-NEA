@@ -1,0 +1,1 @@
+print(f&quot;pairs:&quot {['abc', 'agg']}")

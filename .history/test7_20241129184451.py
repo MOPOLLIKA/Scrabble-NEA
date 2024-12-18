@@ -1,0 +1,1 @@
+print(&quot;pairs:&quot; {['abc', 'agg']}")
