@@ -1046,8 +1046,6 @@ def launchGame() -> None:
     clock: pygame.time.Clock = pygame.time.Clock()
 
     board: Board = Board()
-    board.printTypes()
-    sys.exit()
     
     letterBag: LetterBag = LetterBag()
     players: list[Player] = []

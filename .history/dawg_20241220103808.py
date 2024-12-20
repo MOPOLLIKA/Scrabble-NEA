@@ -164,6 +164,7 @@ class Trie:
         nextNode = nextEdge.getRightNode()
         currentWord += nextEdge.getLetter()
         return self._goRight(nextNode, currentWord)
+        
 
     def isTrieWord(self, word: str) -> bool:
         startNode = self.rootNode

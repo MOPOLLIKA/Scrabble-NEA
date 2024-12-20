@@ -135,6 +135,39 @@ class Trie:
 
             lastNode = self.rootNode
 
+    def _searchRightRecursively(self, node: Node, word: str, depth: int) -> bool:
+        rightEdges = node.getRightEdges()
+        letter = word[depth]
+        rightEdgesAvailable = list(filter(lambda x: x == letter and not x.getRightNode().getIsSearched(), rightEdges))
+        # Stopping criterion
+        if depth == len(word) - 1 and node.getIsTerminal():
+            return True
+        # Going back if no letter is found and set the current node isSearched flag true
+        if len(rightEdgesAvailable) == 0:
+            depth -= 1
+            # No such word found and the depth went behind the root node
+            if depth == -1:
+                return False
+            previousNode = node.getLeftEdges()[0].getLeftNode()
+            node.setSearched()
+            return self._searchRight(previousNode, word, depth)
+
+        edge = rightEdgesAvailable[0]
+        nextNode = edge.getRightNode()
+        print(nextNode)
+        return self._searchRight(nextNode, word, depth + 1)
+    
+    def dfs(self, node: Node, currentWord: str, wordSearched: str) -> bool | None:
+        print(f"Current node: {node}, current word: {currentWord}")
+        if currentWord == wordSearched and node.getIsTerminal():
+            return True
+        letter = wordSearched[len(currentWord)]
+        rightEdges = node.getRightEdges()
+        rightEdgesAvailable = list(filter(lambda x: x == letter, rightEdges))
+        for edge in rightEdgesAvailable:
+            nextNode = edge.getRightNode()
+            return self.dfs(nextNode, currentWord + letter, wordSearched)
+
     def bashSearch(self, word: str) -> bool:
         word = word.capitalize()
         if len(word) <= 1:
@@ -164,6 +197,7 @@ class Trie:
         nextNode = nextEdge.getRightNode()
         currentWord += nextEdge.getLetter()
         return self._goRight(nextNode, currentWord)
+        
 
     def isTrieWord(self, word: str) -> bool:
         startNode = self.rootNode
@@ -238,38 +272,3 @@ if __name__ == "__main__":
     for i in gen:
         print(i)
     print(time.time() - t1)
-
-"""
-    def _searchRightRecursively(self, node: Node, word: str, depth: int) -> bool:
-        rightEdges = node.getRightEdges()
-        letter = word[depth]
-        rightEdgesAvailable = list(filter(lambda x: x == letter and not x.getRightNode().getIsSearched(), rightEdges))
-        # Stopping criterion
-        if depth == len(word) - 1 and node.getIsTerminal():
-            return True
-        # Going back if no letter is found and set the current node isSearched flag true
-        if len(rightEdgesAvailable) == 0:
-            depth -= 1
-            # No such word found and the depth went behind the root node
-            if depth == -1:
-                return False
-            previousNode = node.getLeftEdges()[0].getLeftNode()
-            node.setSearched()
-            return self._searchRight(previousNode, word, depth)
-
-        edge = rightEdgesAvailable[0]
-        nextNode = edge.getRightNode()
-        print(nextNode)
-        return self._searchRight(nextNode, word, depth + 1)
-    
-    def dfs(self, node: Node, currentWord: str, wordSearched: str) -> bool | None:
-        print(f"Current node: {node}, current word: {currentWord}")
-        if currentWord == wordSearched and node.getIsTerminal():
-            return True
-        letter = wordSearched[len(currentWord)]
-        rightEdges = node.getRightEdges()
-        rightEdgesAvailable = list(filter(lambda x: x == letter, rightEdges))
-        for edge in rightEdgesAvailable:
-            nextNode = edge.getRightNode()
-            return self.dfs(nextNode, currentWord + letter, wordSearched)
-"""
