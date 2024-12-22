@@ -4,6 +4,7 @@ import random
 import time
 from typing import Iterable, Literal
 from numpy import transpose
+#from wordCheck import isWord
 from dawg import Trie, Node, Edge, listToStr, load
 from copy import deepcopy
 
