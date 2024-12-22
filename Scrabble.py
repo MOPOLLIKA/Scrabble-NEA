@@ -8,7 +8,7 @@ from numpy import transpose
 from pprint import pprint
 import sys
 #from wordCheck import isWord
-from dawg import Trie, listToStr
+from dawg import Trie, Node, Edge, listToStr, load
 from copy import deepcopy
 
 # RGB color constants for UI elements
@@ -32,14 +32,7 @@ LETTERS_SCORES: dict = {"A": 1, "B": 3, "C": 3, "D": 2, "E": 1, "F": 4, "G": 2,
                         "V": 4, "W": 4, "X": 8, "Y": 4, "Z": 10, "BLANK": 0}
 
 # Trie structure for word checking
-trie = Trie()
-
-with open("MyDictionary.json", "r") as f:
-    words = json.load(f)
-    f.close()
-
-trie = Trie()
-trie.assemble(words)
+trie = load("/Users/MOPOLLIKA/Scrabble_NEA/trie.pkl")
 
 def isWord(word: str) -> bool:
     """Checks if a given string is a valid word according to the trie."""
@@ -998,7 +991,7 @@ def letterToTileFilename(letter: str, key: int, isBoardSize: bool) -> str:
     for (dir_path, dir_names, file_names) in os.walk(folderPath):
         if letter == "BLANK":
             return "Blank1.png"
-        fileNamesSorted: list = list(filter(lambda x: x[0] == letter, file_names))
+        fileNamesSorted: list = list(filter(lambda x: x[0] == letter and x[0:5] != "Blank", file_names))
         numberOfPossibleTiles: int = len(fileNamesSorted)
         index: int = (key + 7) % numberOfPossibleTiles
         tileFilename: str = fileNamesSorted[index]
@@ -1046,9 +1039,7 @@ def launchGame() -> None:
     clock: pygame.time.Clock = pygame.time.Clock()
 
     board: Board = Board()
-    board.printTypes()
-    sys.exit()
-    
+
     letterBag: LetterBag = LetterBag()
     players: list[Player] = []
     numberOfPlayers: int = 4

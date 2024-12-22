@@ -196,15 +196,7 @@ class Trie:
             word = listToStr(word)
             if self.bashSearch(word):
                 possible.append(word)
-        return possible
-        
-
-class Dawg(Trie):
-    def __init__(self, rootNode):
-        super().__init__(rootNode)
-
-    def _assemble(self, vocabulary: dict[str, str]) -> None:
-        super()._assemble(vocabulary)
+        return possible       
 
 
 def save(object: object, filename: str):
@@ -219,27 +211,27 @@ def load(filename: str):
         return obj
     
 if __name__ == "__main__":
-    """
-    node1 = Node(False, True)
-    node2 = Node(False, False)
-    node3 = Node(True, True)
-    edge1 = Edge("T", node1, node2)
-    edge2 = Edge("O", node2, node3)
-    """
-    
+
     with open("MyDictionary.json", "r") as f:
         words = json.load(f)
         f.close()
 
     trie = Trie()
     trie.assemble(words)
+    save(trie, FILENAME)
+    print(trie.bashSearch("za"))
+    
+
+
+
+"""
     t1 = time.time()
     gen = trie.generateOptimalWord(["A", "C", "I", "D", "M", "U", "M"])
     for i in gen:
         print(i)
     print(time.time() - t1)
 
-"""
+
     def _searchRightRecursively(self, node: Node, word: str, depth: int) -> bool:
         rightEdges = node.getRightEdges()
         letter = word[depth]
@@ -272,4 +264,12 @@ if __name__ == "__main__":
         for edge in rightEdgesAvailable:
             nextNode = edge.getRightNode()
             return self.dfs(nextNode, currentWord + letter, wordSearched)
+
+class Dawg(Trie):
+    def __init__(self, rootNode):
+        super().__init__(rootNode)
+
+    def _assemble(self, vocabulary: dict[str, str]) -> None:
+        super()._assemble(vocabulary)
+
 """
